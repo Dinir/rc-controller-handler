@@ -121,12 +121,12 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""Trigger"",
-                    ""type"": ""Button"",
+                    ""type"": ""PassThrough"",
                     ""id"": ""9caf2425-1477-4cb7-b044-9612ba526d4d"",
-                    ""expectedControlType"": """",
+                    ""expectedControlType"": ""Axis"",
                     ""processors"": """",
                     ""interactions"": """",
-                    ""initialStateCheck"": true
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
