@@ -22,7 +22,7 @@ public class SextupleAxesManager
     private float _aux;
     private float _trigger;
     public readonly SextupleAxesManager Deadzone;
-    public const float Epsilon = .001f;
+    public const float Epsilon = .000001f;
     private bool[] _changed = new bool[6];
 
     public Vector2 Left
