@@ -221,7 +221,7 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""up"",
                     ""id"": ""2e179190-0c20-4a61-a6f8-ce492c6d6d11"",
-                    ""path"": ""<Keyboard>/o"",
+                    ""path"": ""<Keyboard>/l"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard & Mouse"",
@@ -232,7 +232,7 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""down"",
                     ""id"": ""12198821-4edb-4a25-86d9-ba3a68fd67f6"",
-                    ""path"": ""<Keyboard>/l"",
+                    ""path"": ""<Keyboard>/o"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard & Mouse"",
