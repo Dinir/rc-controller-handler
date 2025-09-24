@@ -183,23 +183,43 @@ public class RCControllerHandler
         Changes = Axes.GetChanges(PrevAxes);
     }
 
+    public virtual void OnLeft() 
+    {
+        Debug.Log($"RC Left: {Axes.Left}");
+    }
+
+    public virtual void OnRight() 
+    {
+        Debug.Log($"RC Right: {Axes.Right}");
+    }
+
+    public virtual void OnAux() 
+    {
+        Debug.Log($"RC Aux: {Axes.Aux}");
+    }
+
+    public virtual void OnTrigger() 
+    {
+        Debug.Log($"RC Trigger: {Axes.Trigger}");
+    }
+
     public void SendMessages(GameObject receiver, bool[] changes)
     {
         if (changes[0] || changes[1])
             receiver.SendMessage(
-                "OnLeft", SendMessageOptions.DontRequireReceiver
+                "OnLeft", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[2] || changes[3])
             receiver.SendMessage(
-                "OnRight", SendMessageOptions.DontRequireReceiver
+                "OnRight", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[4])
             receiver.SendMessage(
-                "OnAux", SendMessageOptions.DontRequireReceiver
+                "OnAux", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[5])
             receiver.SendMessage(
-                "OnTrigger", SendMessageOptions.DontRequireReceiver
+                "OnTrigger", null, SendMessageOptions.DontRequireReceiver
             );
     }
 }
