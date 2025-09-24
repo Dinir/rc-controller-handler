@@ -12,4 +12,9 @@ public class FsSm600Handler : RCControllerHandler
         "stick/x", "slider", "rz", "stick/y", "z", "trigger"
     };
     public FsSm600Handler() : base(Names, ControlNames) {}
+
+    public void TryToConnect()
+    {
+        TryToConnect(Names, ControlNames);
+    }
 }

@@ -126,7 +126,7 @@ public class SextupleAxesManager
 public class RCControllerHandler
 {
     internal static readonly int ControlAmount = 6;
-    internal readonly InputDevice Device;
+    internal InputDevice Device;
     internal readonly InputControl[] Controls = new InputControl[6];
     internal readonly SextupleAxesManager Axes = new();
     internal readonly SextupleAxesManager PrevAxes = new();
@@ -139,6 +139,11 @@ public class RCControllerHandler
         if (controls.Length != ControlAmount) 
             throw new ArgumentException($"Number of controls must be {ControlAmount}.");
         
+        TryToConnect(names, controls);
+    }
+
+    public void TryToConnect(IEnumerable<string> names, string[] controls)
+    {
         Device = InputSystem.devices.FirstOrDefault(d =>
         {
             if (string.IsNullOrEmpty(d.name)) return false;
