@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -148,7 +147,11 @@ public class RCControllerHandler
             ));
         });
         
-        if (Device == null) throw new ArgumentException("No matching controller found.");
+        if (Device == null)
+        {
+            Debug.LogWarning("RC Controller not found.");
+            return;
+        }
         
         for (int i = 0; i < ControlAmount; i++)
         {
