@@ -203,23 +203,23 @@ public class RCControllerHandler
         Debug.Log($"RC Trigger: {Axes.Trigger}");
     }
 
-    public void SendMessages(MonoBehaviour receiver, bool[] changes)
+    public void SendMessages(GameObject receiver, bool[] changes)
     {
         if (changes[0] || changes[1])
             receiver.SendMessage(
-                "OnLeft", SendMessageOptions.DontRequireReceiver
+                "OnLeft", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[2] || changes[3])
             receiver.SendMessage(
-                "OnRight", SendMessageOptions.DontRequireReceiver
+                "OnRight", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[4])
             receiver.SendMessage(
-                "OnAux", SendMessageOptions.DontRequireReceiver
+                "OnAux", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[5])
             receiver.SendMessage(
-                "OnTrigger", SendMessageOptions.DontRequireReceiver
+                "OnTrigger", null, SendMessageOptions.DontRequireReceiver
             );
     }
 }

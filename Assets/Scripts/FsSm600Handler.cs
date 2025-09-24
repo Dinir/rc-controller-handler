@@ -2,12 +2,12 @@ using System.Collections.Generic;
 
 public class FsSm600Handler : RCControllerHandler
 {
-    internal static readonly string[] Names = 
+    private static readonly string[] Names = 
     {
         "RC Simulator - AeroFly Controller",
         "PengFei Model RC Simulator - AeroFly Controller"
     };
-    internal static readonly string[] ControlNames =
+    private static readonly string[] ControlNames =
     {
         "stick/x", "slider", "rz", "stick/y", "z", "trigger"
     };
