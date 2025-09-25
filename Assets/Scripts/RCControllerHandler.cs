@@ -126,7 +126,6 @@ public class SextupleAxesManager
 public class RCControllerHandler
 {
     internal static readonly int ControlAmount = 6;
-    internal const int MyLife = 0;
     internal InputDevice Device;
     internal readonly InputControl[] Controls = new InputControl[6];
     internal readonly SextupleAxesManager Axes = new();
@@ -208,19 +207,19 @@ public class RCControllerHandler
     {
         if (changes[0] || changes[1])
             receiver.SendMessage(
-                "OnLeft", MyLife, SendMessageOptions.DontRequireReceiver
+                "OnLeft", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[2] || changes[3])
             receiver.SendMessage(
-                "OnRight", MyLife, SendMessageOptions.DontRequireReceiver
+                "OnRight", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[4])
             receiver.SendMessage(
-                "OnAux", MyLife, SendMessageOptions.DontRequireReceiver
+                "OnAux", null, SendMessageOptions.DontRequireReceiver
             );
         if (changes[5])
             receiver.SendMessage(
-                "OnTrigger", MyLife, SendMessageOptions.DontRequireReceiver
+                "OnTrigger", null, SendMessageOptions.DontRequireReceiver
             );
     }
 }
