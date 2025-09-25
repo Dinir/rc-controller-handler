@@ -8,6 +8,8 @@ public class DroneController : MonoBehaviour
     internal FsSm600Handler Handler;
     internal GeneralInputHandler GeneralHandler;
     internal bool HandlerFound;
+    internal float HandlerPollTime;
+    internal readonly float HandlerPollTimer = 3f;
     internal SextupleAxesManager PrevAxes;
     internal SextupleAxesManager GeneralAxes;
     internal bool[] Changed = new bool[6];
@@ -28,6 +30,18 @@ public class DroneController : MonoBehaviour
         {
             Handler.Poll();
             Handler.SendMessages(gameObject, Handler.Changes);
+        }
+        else
+        {
+            HandlerPollTime += Time.deltaTime;
+            if (HandlerPollTime >= HandlerPollTimer)
+            {
+                HandlerPollTime = 0;
+                Handler.TryToConnect(
+                    FsSm600Handler.Names, FsSm600Handler.ControlNames
+                );
+                HandlerFound = Handler.Device != null;
+            }
         }
     }
 
