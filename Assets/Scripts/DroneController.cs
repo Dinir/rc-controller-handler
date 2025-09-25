@@ -45,52 +45,16 @@ public class DroneController : MonoBehaviour
         }
     }
 
-    // event handling for RC Controller
-    public void OnLeft(InputValue v)
-    {
-        if ( v is not null && v.Get() is not null )
-        {
-            GeneralHandler.OnLeft(v);
-        }
-        else
-        {
-            Handler.OnLeft();
-        }
-    }
+    public void OnLeft(int _)    { Handler.OnLeft(); }
+    public void OnRight(int _)   { Handler.OnRight(); }
+    public void OnAux(int _)     { Handler.OnAux(); }
+    public void OnTrigger(int _) { Handler.OnTrigger(); }
+    
+    public void OnLeft(InputValue v) { GeneralHandler.OnLeft(v); }
 
-    public void OnRight(InputValue v)
-    {
-        if ( v is not null && v.Get() is not null )
-        {
-            GeneralHandler.OnRight(v);
-        }
-        else
-        {
-            Handler.OnRight();
-        }
-    }
+    public void OnRight(InputValue v) { GeneralHandler.OnRight(v); }
     
-    public void OnAux(InputValue v)
-    {
-        if ( v is not null && v.Get() is not null )
-        {
-            GeneralHandler.OnAux(v);
-        }
-        else
-        { 
-            Handler.OnAux();
-        }
-    }
+    public void OnAux(InputValue v) { GeneralHandler.OnAux(v); }
     
-    public void OnTrigger(InputValue v)
-    {
-        if ( v is not null && v.Get() is not null )
-        {
-            GeneralHandler.OnTrigger(v);
-        }
-        else
-        {
-            Handler.OnTrigger();
-        }
-    }
+    public void OnTrigger(InputValue v) { GeneralHandler.OnTrigger(v); }
 }
