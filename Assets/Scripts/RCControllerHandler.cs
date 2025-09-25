@@ -207,19 +207,19 @@ public class RCControllerHandler
     {
         if (changes[0] || changes[1])
             receiver.SendMessage(
-                "OnLeft", null, SendMessageOptions.DontRequireReceiver
+                "OnLeft", 0, SendMessageOptions.DontRequireReceiver
             );
         if (changes[2] || changes[3])
             receiver.SendMessage(
-                "OnRight", null, SendMessageOptions.DontRequireReceiver
+                "OnRight", 0, SendMessageOptions.DontRequireReceiver
             );
         if (changes[4])
             receiver.SendMessage(
-                "OnAux", null, SendMessageOptions.DontRequireReceiver
+                "OnAux", 0, SendMessageOptions.DontRequireReceiver
             );
         if (changes[5])
             receiver.SendMessage(
-                "OnTrigger", null, SendMessageOptions.DontRequireReceiver
+                "OnTrigger", 0, SendMessageOptions.DontRequireReceiver
             );
     }
 }
