@@ -45,44 +45,53 @@ public class DroneController : MonoBehaviour
         }
     }
 
-    // event handling for RC Controller
+    // event handling for generic controllers (gamepads and keyboards + mouses)
     public void OnLeft(InputValue v)
     {
-            GeneralHandler.OnLeft(v);
+            ActionLeft(GeneralHandler.OnLeft(v));
     }
-
     public void OnRight(InputValue v)
     {
-            GeneralHandler.OnRight(v);
+            ActionRight(GeneralHandler.OnRight(v));
     }
-    
     public void OnAux(InputValue v)
     {
-            GeneralHandler.OnAux(v);
+            ActionAux(GeneralHandler.OnAux(v));
     }
-    
     public void OnTrigger(InputValue v)
     {
-            GeneralHandler.OnTrigger(v);
+            ActionTrigger(GeneralHandler.OnTrigger(v));
     }
 
+    // event handling for RC Controllers
     public void OnLeft(int _)
     {
-        Handler.OnLeft();    
+        ActionLeft(Handler.OnLeft());    
     }
-
     public void OnRight(int _)
     {
-        Handler.OnRight();
+        ActionRight(Handler.OnRight());
     }
-
     public void OnAux(int _)
     {
-        Handler.OnAux();
+        ActionAux(Handler.OnAux());
     }
-
     public void OnTrigger(int _)
     {
-        Handler.OnTrigger();
+        ActionTrigger(Handler.OnTrigger());
+    }
+
+    // action for the attached game object
+    public void ActionLeft(Vector2 v)
+    {
+    }
+    public void ActionRight(Vector2 v)
+    {
+    }
+    public void ActionAux(float v)
+    {
+    }
+    public void ActionTrigger(float v)
+    {
     }
 }
