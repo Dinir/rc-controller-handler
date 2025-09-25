@@ -81,12 +81,18 @@ public class DroneController : MonoBehaviour
         ActionTrigger(Handler.OnTrigger());
     }
 
+    private float speed = 3f;
     // action for the attached game object
     public void ActionLeft(Vector2 v)
     {
+        transform.localPosition += new Vector3(0, speed * v.y * Time.deltaTime, 0);
+        transform.Rotate(0, 10f * speed * v.x * Time.deltaTime, 0);
     }
     public void ActionRight(Vector2 v)
     {
+        Vector3 moveVector = new Vector3(speed * v.x * Time.deltaTime, 0, speed * v.y * Time.deltaTime);
+        transform.localPosition += transform.rotation * moveVector;
+
     }
     public void ActionAux(float v)
     {
