@@ -56,6 +56,19 @@ namespace ControlHandler
             get => _trigger;
             set => _trigger = Mathf.Clamp(value / Deadzone[5], 0f, Deadzone[5]);
         }
+        
+        public void SetDeadzoneLeft(Vector2 v) =>
+            _left = new Vector2(
+                Mathf.Clamp01(v.x),
+                Mathf.Clamp01(v.y)
+            );
+        public void SetDeadzoneRight (Vector2 v) =>
+            _right = new Vector2(
+                Mathf.Clamp01(v.x),
+                Mathf.Clamp01(v.y)
+            );
+        public void SetDeadzoneAux(float v) => _aux = Mathf.Clamp01(v);
+        public void SetDeadzoneTrigger(float v) => _trigger = Mathf.Clamp01(v);
 
         /// <summary>
         /// Make the axis values available in the form of array elements.
@@ -96,7 +109,9 @@ namespace ControlHandler
 
             for (int i = 0; i < 6; i++)
             {
-                _changed[i] = Mathf.Abs(this[i] - prev[i]) > e;
+                _changed[i] =
+                    Mathf.Abs(this[i] - prev[i]) > e &&
+                    this[i] >= Deadzone[i];
             }
 
             return _changed;

@@ -184,6 +184,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9eddd625d925df343b75d367e6990378, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DroneController
+  rcControllerDeadzone: 0.001
+  generalDeadzone: 0.075
   throttleForce: 2
   maxTiltDegree: 30
   zActionMaxRate: 1
@@ -406,6 +408,7 @@ GameObject:
   - component: {fileID: 1316833075}
   - component: {fileID: 1316833074}
   - component: {fileID: 1316833073}
+  - component: {fileID: 1316833076}
   m_Layer: 0
   m_Name: XZPlane
   m_TagString: Untagged
@@ -506,6 +509,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1316833071}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1316833076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316833071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7554e78947d4965a0511bfef830d578, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DroneMovement.HelperPlane
+  maxTiltDegree: 30
 --- !u!1001 &1762640716
 PrefabInstance:
   m_ObjectHideFlags: 0

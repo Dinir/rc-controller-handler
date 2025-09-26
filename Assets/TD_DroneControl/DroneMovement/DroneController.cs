@@ -25,7 +25,12 @@ namespace DroneMovement
         private float[] _wingsStrafeFactor;
         private Transform _xzPlane;
 
-        [Header("Movement")] [SerializeField] private float throttleForce = 2f;
+        [Header("Controller")]
+        [SerializeField] private float rcControllerDeadzone = .001f;
+        [SerializeField] private float generalDeadzone = .075f;
+
+        [Header("Movement")] 
+        [SerializeField] private float throttleForce = 2f;
         [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float zActionMaxRate = 1f;
         [SerializeField] private float strafeRate = 1f;
@@ -38,6 +43,11 @@ namespace DroneMovement
             HandlerFound = Handler.Device != null;
             PrevAxes = new();
             GeneralAxes = new();
+            
+            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone * Vector2.one);
+            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone * Vector2.one);
+            GeneralAxes.SetDeadzoneLeft(generalDeadzone * Vector2.one);
+            GeneralAxes.SetDeadzoneRight(generalDeadzone * Vector2.one);
 
             _rigidBody = GetComponent<Rigidbody>();
             _xzPlane = transform.Find("XZ");
