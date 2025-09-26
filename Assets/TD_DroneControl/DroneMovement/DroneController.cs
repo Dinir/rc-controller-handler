@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using ControlHandler;
-using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -95,46 +92,24 @@ namespace DroneMovement
         }
 
         // event handling for generic controllers (gamepads and keyboards + mouses)
-        public void OnLeft(InputValue v)
-        {
+        public void OnLeft(InputValue v) => 
             ActionLeft(GeneralHandler.OnLeft(v));
-        }
-
-        public void OnRight(InputValue v)
-        {
+        public void OnRight(InputValue v) => 
             ActionRight(GeneralHandler.OnRight(v));
-        }
-
-        public void OnAux(InputValue v)
-        {
+        public void OnAux(InputValue v) => 
             ActionAux(GeneralHandler.OnAux(v));
-        }
-
-        public void OnTrigger(InputValue v)
-        {
+        public void OnTrigger(InputValue v) => 
             ActionTrigger(GeneralHandler.OnTrigger(v));
-        }
 
         // event handling for RC Controllers
-        public void OnLeft(int _)
-        {
+        public void OnLeft(int _) => 
             ActionLeft(Handler.OnLeft());
-        }
-
-        public void OnRight(int _)
-        {
+        public void OnRight(int _) => 
             ActionRight(Handler.OnRight());
-        }
-
-        public void OnAux(int _)
-        {
+        public void OnAux(int _) => 
             ActionAux(Handler.OnAux());
-        }
-
-        public void OnTrigger(int _)
-        {
+        public void OnTrigger(int _) => 
             ActionTrigger(Handler.OnTrigger());
-        }
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
