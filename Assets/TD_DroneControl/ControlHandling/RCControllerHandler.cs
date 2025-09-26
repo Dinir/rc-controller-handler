@@ -172,7 +172,7 @@ namespace ControlHandler
 
             if (Device == null)
             {
-                Debug.LogWarning("RC Controller not found.");
+                Debug.LogWarning("RC controller not found.");
                 return;
             }
 
@@ -182,7 +182,7 @@ namespace ControlHandler
             }
         }
 
-        /// <summary>
+        /// <summary returns="bool">
         /// For every frame, this does three things:
         /// <list type="bullet">
         /// <item>Store last updated axis values.</item>
@@ -190,15 +190,25 @@ namespace ControlHandler
         /// <item>Update what axis has changed.</item>
         /// </list>
         /// </summary>
-        public void Poll()
+        public bool Poll()
         {
-            for (int i = 0; i < ControlAmount; i++)
+            try
             {
-                PrevAxes[i] = Axes[i];
-                Axes[i] = ((AxisControl)Controls[i]).ReadValue();
-            }
+                for (int i = 0; i < ControlAmount; i++)
+                {
+                    PrevAxes[i] = Axes[i];
+                    Axes[i] = ((AxisControl)Controls[i]).ReadValue();
+                }
 
-            Changes = Axes.GetChanges(PrevAxes);
+                Changes = Axes.GetChanges(PrevAxes);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Device = null;
+                Debug.LogWarning("Connection to RC controller is lost.");
+                return false;
+            }
         }
 
         public virtual Vector2 OnLeft()

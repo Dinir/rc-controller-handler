@@ -75,7 +75,9 @@ namespace DroneMovement
             // for RC Controller
             if (HandlerFound)
             {
-                Handler.Poll();
+                HandlerFound = Handler.Poll();
+                if (!HandlerFound) return;
+                
                 Handler.SendMessages(gameObject, Handler.Changes);
             }
             else
