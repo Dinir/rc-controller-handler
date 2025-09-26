@@ -133,6 +133,7 @@ namespace DroneMovement
                 0,
                 throttleForce * v.y
             ));
+            xzPlane.Tilt(v);
         }
 
         public void ActionAux(float v)
