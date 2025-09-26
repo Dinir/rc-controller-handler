@@ -267,7 +267,7 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""id"": ""940ab404-3d98-4efc-b5d9-2dfb4f6cc94b"",
                     ""path"": ""<Pointer>/delta"",
                     ""interactions"": """",
-                    ""processors"": """",
+                    ""processors"": ""ScaleVector2(x=0.001,y=0.001)"",
                     ""groups"": "";Keyboard & Mouse"",
                     ""action"": ""Right"",
                     ""isComposite"": false,

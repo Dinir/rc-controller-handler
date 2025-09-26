@@ -119,11 +119,38 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &13712214 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: fc2fcca10e8758e4e9071260984900ba, type: 3}
+  m_PrefabInstance: {fileID: 1762640716}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &13712218 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fc2fcca10e8758e4e9071260984900ba, type: 3}
   m_PrefabInstance: {fileID: 1762640716}
   m_PrefabAsset: {fileID: 0}
+--- !u!64 &13712219
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 13712214}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 2959467708922500008, guid: fc2fcca10e8758e4e9071260984900ba, type: 3}
 --- !u!1 &380170048
 GameObject:
   m_ObjectHideFlags: 0
@@ -135,6 +162,7 @@ GameObject:
   - component: {fileID: 380170051}
   - component: {fileID: 380170049}
   - component: {fileID: 380170050}
+  - component: {fileID: 380170052}
   m_Layer: 0
   m_Name: Drone
   m_TagString: Untagged
@@ -187,9 +215,11 @@ MonoBehaviour:
   rcControllerDeadzone: 0.001
   generalDeadzone: 0.075
   throttleForce: 2
+  rotationForce: 10
   maxTiltDegree: 30
   zActionMaxRate: 1
   strafeRate: 1
+  xzPlane: {fileID: 1316833076}
 --- !u!4 &380170051
 Transform:
   m_ObjectHideFlags: 0
@@ -207,6 +237,33 @@ Transform:
   - {fileID: 1316833072}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &380170052
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380170048}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -460,7 +517,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1316833071}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -577,7 +634,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fc2fcca10e8758e4e9071260984900ba, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 13712219}
   m_SourcePrefab: {fileID: 100100000, guid: fc2fcca10e8758e4e9071260984900ba, type: 3}
 --- !u!1 &1841361332
 GameObject:

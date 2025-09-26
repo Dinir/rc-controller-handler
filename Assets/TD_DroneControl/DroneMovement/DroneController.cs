@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using ControlHandler;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace DroneMovement
 {
@@ -20,7 +21,6 @@ namespace DroneMovement
         private Transform[] _wings;
         private float[] _wingsZActionFactor;
         private float[] _wingsStrafeFactor;
-        private Transform _xzPlane;
 
         [Header("Controller")]
         [SerializeField] private float rcControllerDeadzone = .001f;
@@ -28,10 +28,15 @@ namespace DroneMovement
 
         [Header("Movement")] 
         [SerializeField] private float throttleForce = 2f;
+        [SerializeField] private float rotationForce = 10f;
         [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float zActionMaxRate = 1f;
         [SerializeField] private float strafeRate = 1f;
+        [SerializeField] HelperPlane xzPlane;
         private float _wingRotationMultiplier = 4f;
+        
+        private Vector3 _movV;
+        private Quaternion _rotQ;
 
         void Awake()
         {
@@ -47,7 +52,7 @@ namespace DroneMovement
             GeneralAxes.SetDeadzoneRight(generalDeadzone * Vector2.one);
 
             _rigidBody = GetComponent<Rigidbody>();
-            _xzPlane = transform.Find("XZ");
+            xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
             _wings = new[]
             {
                 transform.Find("Propeller CW F"),
@@ -89,41 +94,45 @@ namespace DroneMovement
                     HandlerFound = Handler.Device != null;
                 }
             }
+            
+            // execute movement
+            float dT = Time.smoothDeltaTime;
+            
+            transform.localRotation = Quaternion.Slerp(
+                transform.localRotation,
+                _rotQ,
+                dT
+                
+            );
+            transform.localPosition = Vector3.Lerp(
+                transform.localPosition,
+                _movV,
+                dT
+            );
         }
-
-        // event handling for generic controllers (gamepads and keyboards + mouses)
-        public void OnLeft(InputValue v) => 
-            ActionLeft(GeneralHandler.OnLeft(v));
-        public void OnRight(InputValue v) => 
-            ActionRight(GeneralHandler.OnRight(v));
-        public void OnAux(InputValue v) => 
-            ActionAux(GeneralHandler.OnAux(v));
-        public void OnTrigger(InputValue v) => 
-            ActionTrigger(GeneralHandler.OnTrigger(v));
-
-        // event handling for RC Controllers
-        public void OnLeft(int _) => 
-            ActionLeft(Handler.OnLeft());
-        public void OnRight(int _) => 
-            ActionRight(Handler.OnRight());
-        public void OnAux(int _) => 
-            ActionAux(Handler.OnAux());
-        public void OnTrigger(int _) => 
-            ActionTrigger(Handler.OnTrigger());
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
-            transform.localPosition += new Vector3(0, throttleForce * v.y * Time.deltaTime, 0);
-            transform.Rotate(0, 10f * throttleForce * v.x * Time.deltaTime, 0);
+            _movV += new Vector3(
+                0, 
+                throttleForce * v.y, 
+                0
+            );
+            _rotQ = Quaternion.Euler(
+                _rotQ.eulerAngles.x,
+                _rotQ.eulerAngles.y + rotationForce * v.x,
+                _rotQ.eulerAngles.z
+            );
         }
 
         public void ActionRight(Vector2 v)
         {
-            Vector3 moveVector = new Vector3(throttleForce * v.x * Time.deltaTime, 0,
-                throttleForce * v.y * Time.deltaTime);
-            transform.localPosition += transform.rotation * moveVector;
-
+            _movV += transform.TransformDirection(new Vector3(
+                throttleForce * v.x, 
+                0,
+                throttleForce * v.y
+            ));
         }
 
         public void ActionAux(float v)
@@ -162,5 +171,25 @@ namespace DroneMovement
                 );
             }
         }
+
+        // event handling for generic controllers (gamepads and keyboards + mouses)
+        public void OnLeft(InputValue v) => 
+            ActionLeft(GeneralHandler.OnLeft(v));
+        public void OnRight(InputValue v) => 
+            ActionRight(GeneralHandler.OnRight(v));
+        public void OnAux(InputValue v) => 
+            ActionAux(GeneralHandler.OnAux(v));
+        public void OnTrigger(InputValue v) => 
+            ActionTrigger(GeneralHandler.OnTrigger(v));
+
+        // event handling for RC Controllers
+        public void OnLeft(int _) => 
+            ActionLeft(Handler.OnLeft());
+        public void OnRight(int _) => 
+            ActionRight(Handler.OnRight());
+        public void OnAux(int _) => 
+            ActionAux(Handler.OnAux());
+        public void OnTrigger(int _) => 
+            ActionTrigger(Handler.OnTrigger());
     }
 }
