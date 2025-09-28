@@ -25,6 +25,8 @@ namespace DroneMovement
         [Header("Controller")]
         [SerializeField] private float rcControllerDeadzone = .001f;
         [SerializeField] private float generalDeadzone = .075f;
+        [SerializeField] private float rcControllerMaxValue = .9f;
+        [SerializeField] private float generalMaxValue = 1f;
 
         [Header("Movement")] 
         [SerializeField] private float throttleForce = 2f;
@@ -46,10 +48,10 @@ namespace DroneMovement
             PrevAxes = new();
             GeneralAxes = new();
             
-            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone * Vector2.one);
-            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone * Vector2.one);
-            GeneralAxes.SetDeadzoneLeft(generalDeadzone * Vector2.one);
-            GeneralAxes.SetDeadzoneRight(generalDeadzone * Vector2.one);
+            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue * Vector2.one);
+            Handler.Axes.SetMaxValueRight(rcControllerMaxValue * Vector2.one);
+            GeneralAxes.SetMaxValueLeft(generalMaxValue * Vector2.one);
+            GeneralAxes.SetMaxValueRight(generalMaxValue * Vector2.one);
 
             _rigidBody = GetComponent<Rigidbody>();
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
