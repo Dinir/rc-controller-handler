@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace ControlHandler
 {
     public class FsSm600Handler : RCControllerHandler
