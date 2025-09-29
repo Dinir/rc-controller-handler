@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 
 namespace DroneMovement
 {
-    public enum WingDir { CCW = 0, CW = 1 }
+    public enum WingDir { CCW = -1, CW = 1 }
     public enum WingPos { Front = 0, Middle = 1, Back = 2 }
      
     [RequireComponent(typeof(PlayerInput))]
@@ -41,12 +41,14 @@ namespace DroneMovement
         [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
         [Header("Movement")] 
+        [SerializeField] private float baseThrottleForce = 1f;
         [SerializeField] private float throttleForce = 1f;
-        [SerializeField] private float rotationForce = 10f;
         [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float zActionMaxRate = 1f;
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
+        private bool _isPowered;
+        private float _currentPoweredThrottle;
         private float _wingRotationMultiplier = 4f;
         
         private Vector3 _movV;
@@ -73,6 +75,9 @@ namespace DroneMovement
             _rigidBody = GetComponent<Rigidbody>();
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
+            // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
+            _isPowered = true;
+            
             if (wingsCount > 0 && wings[0] == null)
             {
                 switch (wingsCount)
@@ -82,8 +87,8 @@ namespace DroneMovement
                         {
                             model.transform.Find("Propeller CW F"),
                             model.transform.Find("Propeller CCW F"),
-                            model.transform.Find("Propeller CW M"),
                             model.transform.Find("Propeller CCW M"),
+                            model.transform.Find("Propeller CW M"),
                             model.transform.Find("Propeller CW B"),
                             model.transform.Find("Propeller CCW B"),
                         };
@@ -145,12 +150,18 @@ namespace DroneMovement
                 _movV,
                 dT
             );
+            _currentPoweredThrottle = Mathf.Lerp(
+                _currentPoweredThrottle, 
+                _isPowered ? baseThrottleForce : 0, 
+                dT
+            );
             CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsStrafeFactor);
         }
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
+            /*/ apply force directly to the body
             _movV += new Vector3(
                 0, 
                 throttleForce * v.y, 
@@ -161,16 +172,24 @@ namespace DroneMovement
                 _rotQ.eulerAngles.y + rotationForce * v.x,
                 _rotQ.eulerAngles.z
             );
+            /*/
+            MovementRotate(v.x);
+            MovementY(v.y);
+            //*/
         }
 
         public void ActionRight(Vector2 v)
         {
+            /*/ apply force directly to the body
             _movV += transform.TransformDirection(new Vector3(
                 throttleForce * v.x, 
                 0,
                 throttleForce * v.y
             ));
             xzPlane.Tilt(v);
+            /*/
+            MovementXZ(v);
+            //*/
         }
 
         public void ActionAux(float v)
@@ -186,12 +205,12 @@ namespace DroneMovement
          * Case 6:
          * 0   1   2   3   4   5
          * F   F   M   M   B   B
-         * CW  CCW CW  CCW CW  CCW
+         * CW  CCW CCW CW  CW  CCW
          * 0   0   1   1   2   2
-         * 1   -1  1   -1  1   -1
+         * 1   -1  -1  1   1   -1
          *
          * 2 * Pos + Dir
-         * -1 + 2 * index % 1
+         * i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW
          *
          * Case 4:
          * 0   1   2   3
@@ -201,38 +220,77 @@ namespace DroneMovement
          * 1   -1  -1  1
          */
         
+        private WingDir WingDirAtOrder(int i) => 
+            i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW;
+
         // drone animation (complex)
-        private void MovementRotateLeft()
+        private void MovementRotate(float v)
         {
-            
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float) WingDirAtOrder(i);
+                RotateWingAndExertForce(
+                    rigidbody, 
+                    wings[i], 
+                    d, 
+                    d * throttleForce
+                );
+            }
         }
-        private void MovementRotateRight()
+        private void MovementY(float v)
         {
-            
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = 1f;
+                RotateWingAndExertForce(
+                    rigidbody,
+                    wings[i],
+                    d,
+                    d * throttleForce
+                );
+            }
         }
-        private void MovementY()
+        private void MovementXZ(Vector2 v)
         {
-            
-        }
-        private void MovementXZ()
-        {
-            
+            switch (wingsCount)
+            {
+                case 6:
+                    break;
+                case 4:
+                    break;
+            }
         }
 
         /*
          * Torque -> Left Thumb -> Apply Up -> Spins Clockwise
+         * Wing's Torque Exerted to its Body -> Right Thumb ->
+         *  Wing Spins Counterclockwise -> Rotates the body Clockwise -> Should be Applying Up
          */
         
         // drone animation (unit)
-        private void RotateWing(Rigidbody body, Transform wing, WingDir d, float f)
+        
+        /// <summary>
+        /// Rotates `w`ing in `d` direction by force of `f`,
+        /// and apply torque to the `b`ody the wing is attached to.
+        /// </summary>
+        /// <param name="b">Rigidbody of the body the wing is attached to.</param>
+        /// <param name="w">Transform of the wing to rotate.</param>
+        /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
+        /// <param name="f">Amount of the force to apply.</param>
+        private void RotateWingAndExertForce(Rigidbody b, Transform w, float d, float f)
         {
-            wing.Rotate(
+            w.Rotate(
                 0, 
-                (float)d * _wingRotationMultiplier * f,
+                d * _wingRotationMultiplier * (_currentPoweredThrottle + f),
                 0
             );
-            body.AddRelativeTorque(
-                (float)d * Vector3.up * f,
+            b.AddRelativeTorque(
+                -d * Vector3.up * (_currentPoweredThrottle + f),
+                ForceMode.Acceleration
+            );
+            b.AddForceAtPosition(
+                Vector3.up * (_currentPoweredThrottle + f),
+                model.transform.position + w.position,
                 ForceMode.Acceleration
             );
         }
