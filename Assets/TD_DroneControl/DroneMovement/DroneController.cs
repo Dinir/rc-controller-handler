@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ControlHandler;
 using UnityEngine;
@@ -18,18 +19,22 @@ namespace DroneMovement
         internal bool[] Changed = new bool[6];
 
         private Rigidbody _rigidBody;
-        private Transform[] _wings;
-        private float[] _wingsZActionFactor;
-        private float[] _wingsStrafeFactor;
+        private readonly float[] _wingsZActionFactor = new float[6];
+        private readonly float[] _wingsStrafeFactor = new float[6];
+
+        [Header("Properties")] 
+        [SerializeField] private GameObject model;
+        [SerializeField] private int wingsCount = 6;
+        [SerializeField] private Transform[] wings = new Transform[6];
 
         [Header("Controller")]
-        [SerializeField] private float rcControllerDeadzone = .001f;
-        [SerializeField] private float generalDeadzone = .075f;
-        [SerializeField] private float rcControllerMaxValue = .9f;
-        [SerializeField] private float generalMaxValue = 1f;
+        [SerializeField] private Vector2 rcControllerDeadzone = new(.001f, .001f);
+        [SerializeField] private Vector2 generalDeadzone = new(.075f, .075f);
+        [SerializeField] private Vector2 rcControllerMaxValue = new(.9f, .9f);
+        [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
         [Header("Movement")] 
-        [SerializeField] private float throttleForce = 2f;
+        [SerializeField] private float throttleForce = 1f;
         [SerializeField] private float rotationForce = 10f;
         [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float zActionMaxRate = 1f;
@@ -48,30 +53,52 @@ namespace DroneMovement
             PrevAxes = new SextupleAxesManager();
             GeneralAxes = new SextupleAxesManager();
             
-            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue * Vector2.one);
-            Handler.Axes.SetMaxValueRight(rcControllerMaxValue * Vector2.one);
-            GeneralAxes.SetMaxValueLeft(generalMaxValue * Vector2.one);
-            GeneralAxes.SetMaxValueRight(generalMaxValue * Vector2.one);
+            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
+            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
+            GeneralAxes.SetDeadzoneLeft(generalDeadzone);
+            GeneralAxes.SetDeadzoneRight(generalDeadzone);
+            
+            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
+            Handler.Axes.SetMaxValueRight(rcControllerMaxValue);
+            GeneralAxes.SetMaxValueLeft(generalMaxValue);
+            GeneralAxes.SetMaxValueRight(generalMaxValue);
 
             _rigidBody = GetComponent<Rigidbody>();
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
-            _wings = new[]
+
+            if (wingsCount > 0 && wings[0] == null)
             {
-                transform.Find("Propeller CW F"),
-                transform.Find("Propeller CCW F"),
-                transform.Find("Propeller CW M"),
-                transform.Find("Propeller CCW M"),
-                transform.Find("Propeller CW B"),
-                transform.Find("Propeller CCW B"),
-            };
-            _wingsStrafeFactor = new[]
-            {
-                0f, 0f, 0f, 0f, 0f, 0f
-            };
-            _wingsZActionFactor = new[]
-            {
-                0f, 0f, 0f, 0f, 0f, 0f
-            };
+                switch (wingsCount)
+                {
+                    case 6:
+                        wings = new[]
+                        {
+                            model.transform.Find("Propeller CW F"),
+                            model.transform.Find("Propeller CCW F"),
+                            model.transform.Find("Propeller CW M"),
+                            model.transform.Find("Propeller CCW M"),
+                            model.transform.Find("Propeller CW B"),
+                            model.transform.Find("Propeller CCW B"),
+                        };
+                        break;
+                    case 4:
+                        wings = new[]
+                        {
+                            model.transform.Find("Propeller CW F"),
+                            model.transform.Find("Propeller CCW F"),
+                            model.transform.Find("Propeller CW B"),
+                            model.transform.Find("Propeller CCW B"),
+                        };
+                        break;
+                    default:
+                        throw new ArgumentException(
+                            "Currently supports either 4 or 6 wings."    
+                        );
+                }
+            }
+            Array.Fill(_wingsStrafeFactor, 0f, 0, wings.Length);
+            Array.Fill(_wingsZActionFactor, 0f, 0, wings.Length);
+            Debug.Log($"{_wingsStrafeFactor.Length}, {_wingsZActionFactor.Length}");
         }
 
         void Update()

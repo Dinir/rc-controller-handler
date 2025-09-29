@@ -19,49 +19,91 @@ namespace ControlHandler
         private Vector2 _right;
         private float _aux;
         private float _trigger;
-        public readonly SextupleAxesManager MaxValue;
-        public const float Epsilon = .000001f;
-        private bool[] _changed = new bool[6];
+        private readonly SextupleAxesManager _deadzone;
+        private readonly SextupleAxesManager _maxValue;
+        private const float Epsilon = .000001f;
+        private readonly bool[] _changed = new bool[6];
 
         public Vector2 Left
         {
             get => _left;
-            set => _left = new Vector2(
-                Mathf.Clamp(value.x / MaxValue[0], -MaxValue[0], MaxValue[0]),
-                Mathf.Clamp(value.y / MaxValue[1], -MaxValue[1], MaxValue[1])
-            );
+            set
+            {
+                value = new Vector2(
+                    value.x >= 0 ? 
+                        value.x >= _deadzone[0] ? value.x : 0 : 
+                        value.x <= -_deadzone[0] ? value.x : 0,
+                    value.y >= 0 ? 
+                        value.y >= _deadzone[1] ? value.y : 0 :
+                        value.y <= -_deadzone[1] ? value.y : 0
+                );
+                _left = new Vector2(
+                    Mathf.Clamp(value.x / _maxValue[0], -_maxValue[0], _maxValue[0]),
+                    Mathf.Clamp(value.y / _maxValue[1], -_maxValue[1], _maxValue[1])
+                );
+            }
         }
         public Vector2 Right
         {
             get => _right;
-            set => _right = new Vector2(
-                Mathf.Clamp(value.x / MaxValue[2], -MaxValue[2], MaxValue[2]),
-                Mathf.Clamp(value.y / MaxValue[3], -MaxValue[3], MaxValue[3])
-            );
+            set
+            {
+                value = new Vector2(
+                    value.x >= 0 ? 
+                        value.x >= _deadzone[2] ? value.x : 0 : 
+                        value.x <= -_deadzone[2] ? value.x : 0,
+                    value.y >= 0 ? 
+                        value.y >= _deadzone[3] ? value.y : 0 :
+                        value.y <= -_deadzone[3] ? value.y : 0
+                );
+                _right = new Vector2(
+                    Mathf.Clamp(value.x / _maxValue[2], -_maxValue[2], _maxValue[2]),
+                    Mathf.Clamp(value.y / _maxValue[3], -_maxValue[3], _maxValue[3])
+                );
+            }
         }
         public float Aux
         {
             get => _aux;
-            set => _aux = Mathf.Clamp(value / MaxValue[4], -MaxValue[4], MaxValue[4]);
+            set
+            {
+                value = value >= 0 ? 
+                    value >= _deadzone[4] ? value : 0 : 
+                    value <= -_deadzone[4] ? value : 0;
+                _aux = Mathf.Clamp(value / _maxValue[4], -_maxValue[4], _maxValue[4]);
+            }
         }
         public float Trigger
         {
             get => _trigger;
-            set => _trigger = Mathf.Clamp(value / MaxValue[5], 0f, MaxValue[5]);
+            set { _trigger = Mathf.Clamp(value / _maxValue[5], _deadzone[5], _maxValue[5]); }
         }
+
+        public void SetDeadzoneLeft(Vector2 v) =>
+            _deadzone._left = new Vector2(
+                Mathf.Clamp01(Mathf.Abs(v.x)),
+                Mathf.Clamp01(Mathf.Abs(v.y))
+            );
+        public void SetDeadzoneRight (Vector2 v) =>
+            _deadzone._right = new Vector2(
+                Mathf.Clamp01(Mathf.Abs(v.x)),
+                Mathf.Clamp01(Mathf.Abs(v.y))
+            );
+        public void SetDeadzoneAux(float v) => _deadzone._aux = Mathf.Clamp01(Mathf.Abs(v));
+        public void SetDeadzoneTrigger(float v) => _deadzone._trigger = Mathf.Clamp01(Mathf.Abs(v));
         
         public void SetMaxValueLeft(Vector2 v) =>
-            _left = new Vector2(
-                Mathf.Clamp01(v.x),
-                Mathf.Clamp01(v.y)
+            _maxValue._left = new Vector2(
+                Mathf.Clamp01(Mathf.Abs(v.x)),
+                Mathf.Clamp01(Mathf.Abs(v.y))
             );
         public void SetMaxValueRight (Vector2 v) =>
-            _right = new Vector2(
-                Mathf.Clamp01(v.x),
-                Mathf.Clamp01(v.y)
+            _maxValue._right = new Vector2(
+                Mathf.Clamp01(Mathf.Abs(v.x)),
+                Mathf.Clamp01(Mathf.Abs(v.y))
             );
-        public void SetMaxValueAux(float v) => _aux = Mathf.Clamp01(v);
-        public void SetMaxValueTrigger(float v) => _trigger = Mathf.Clamp01(v);
+        public void SetMaxValueAux(float v) => _maxValue._aux = Mathf.Clamp01(Mathf.Abs(v));
+        public void SetMaxValueTrigger(float v) => _maxValue._trigger = Mathf.Clamp01(Mathf.Abs(v));
 
         /// <summary>
         /// Make the axis values available in the form of array elements.
@@ -104,7 +146,7 @@ namespace ControlHandler
             {
                 _changed[i] =
                     Mathf.Abs(this[i] - prev[i]) > e ||
-                    this[i] >= MaxValue[i];
+                    Mathf.Abs(this[i] - _deadzone[i]) > 0;
             }
 
             return _changed;
@@ -113,7 +155,8 @@ namespace ControlHandler
         // ReSharper disable once MemberCanBePrivate.Global
         public SextupleAxesManager(Vector2? l, Vector2? r, float? a, float? t)
         {
-            MaxValue = new SextupleAxesManager(new(1f, 1f), new(1f, 1f), 1f, 1f, true);
+            _deadzone = new SextupleAxesManager(new(0, 0), new(0, 0), 0, 0, true);
+            _maxValue = new SextupleAxesManager(new(1f, 1f), new(1f, 1f), 1f, 1f, true);
 
             Left = l ?? Vector2.zero;
             Right = r ?? Vector2.zero;
@@ -130,7 +173,8 @@ namespace ControlHandler
         // ReSharper disable once UnusedParameter.Local
         private SextupleAxesManager(Vector2 l, Vector2 r, float a, float t, bool _)
         {
-            MaxValue = null;
+            _deadzone = null;
+            _maxValue = null;
             _left = l;
             _right = r;
             _aux = a;
