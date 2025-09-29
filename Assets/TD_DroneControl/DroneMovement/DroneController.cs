@@ -7,6 +7,11 @@ using UnityEngine.Serialization;
 
 namespace DroneMovement
 {
+    public enum WingDir { CCW = 0, CW = 1 }
+    public enum WingPos { Front = 0, Middle = 1, Back = 2 }
+     
+    [RequireComponent(typeof(PlayerInput))]
+    [RequireComponent(typeof(Rigidbody))]
     public class DroneController : MonoBehaviour
     {
         internal FsSm600Handler Handler;
@@ -24,6 +29,8 @@ namespace DroneMovement
 
         [Header("Properties")] 
         [SerializeField] private GameObject model;
+
+        [SerializeField] private Rigidbody rigidbody;
         [SerializeField] private int wingsCount = 6;
         [SerializeField] private Transform[] wings = new Transform[6];
 
@@ -86,8 +93,8 @@ namespace DroneMovement
                         {
                             model.transform.Find("Propeller CW F"),
                             model.transform.Find("Propeller CCW F"),
-                            model.transform.Find("Propeller CW B"),
                             model.transform.Find("Propeller CCW B"),
+                            model.transform.Find("Propeller CW B"),
                         };
                         break;
                     default:
@@ -138,6 +145,7 @@ namespace DroneMovement
                 _movV,
                 dT
             );
+            CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsStrafeFactor);
         }
 
         // action for the attached game object
@@ -172,14 +180,65 @@ namespace DroneMovement
         public void ActionTrigger(float v)
         {
         }
-
-        // drone animation
-        private void RotateWings()
+        
+        /* Wings Position
+         *
+         * Case 6:
+         * 0   1   2   3   4   5
+         * F   F   M   M   B   B
+         * CW  CCW CW  CCW CW  CCW
+         * 0   0   1   1   2   2
+         * 1   -1  1   -1  1   -1
+         *
+         * 2 * Pos + Dir
+         * -1 + 2 * index % 1
+         *
+         * Case 4:
+         * 0   1   2   3
+         * F   F   B   B
+         * CW  CCW CCW  CW
+         * 0   0   2   2
+         * 1   -1  -1  1
+         */
+        
+        // drone animation (complex)
+        private void MovementRotateLeft()
         {
+            
+        }
+        private void MovementRotateRight()
+        {
+            
+        }
+        private void MovementY()
+        {
+            
+        }
+        private void MovementXZ()
+        {
+            
+        }
+
+        /*
+         * Torque -> Left Thumb -> Apply Up -> Spins Clockwise
+         */
+        
+        // drone animation (unit)
+        private void RotateWing(Rigidbody body, Transform wing, WingDir d, float f)
+        {
+            wing.Rotate(
+                0, 
+                (float)d * _wingRotationMultiplier * f,
+                0
+            );
+            body.AddRelativeTorque(
+                (float)d * Vector3.up * f,
+                ForceMode.Acceleration
+            );
         }
 
         private void CalculateDistanceFromWingsToXZ(
-            List<Transform> wingPos, Transform XZ, IList<float> dist
+            IList<Transform> wingPos, Transform XZ, IList<float> dist
         )
         {
             Vector3 n = XZ.up.normalized;
