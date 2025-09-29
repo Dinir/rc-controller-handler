@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ControlHandler;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
@@ -24,8 +25,9 @@ namespace DroneMovement
         internal bool[] Changed = new bool[6];
 
         private Rigidbody _rigidBody;
-        private readonly float[] _wingsZActionFactor = new float[6];
-        private readonly float[] _wingsStrafeFactor = new float[6];
+        private readonly Quaternion[] _wingRotations = new Quaternion[6];
+        private readonly float[] _wingsXzDistances = new float[6];
+        private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
 
         [Header("Properties")] 
         [SerializeField] private GameObject model;
@@ -49,7 +51,7 @@ namespace DroneMovement
         [SerializeField] HelperPlane xzPlane;
         private bool _isPowered;
         private float _currentPoweredThrottle;
-        private float _wingRotationMultiplier = 4f;
+        private float _wingRotationMultiplier = 16f;
         
         private Vector3 _movV;
         private Quaternion _rotQ;
@@ -108,9 +110,9 @@ namespace DroneMovement
                         );
                 }
             }
-            Array.Fill(_wingsStrafeFactor, 0f, 0, wings.Length);
-            Array.Fill(_wingsZActionFactor, 0f, 0, wings.Length);
-            Debug.Log($"{_wingsStrafeFactor.Length}, {_wingsZActionFactor.Length}");
+            Array.Fill(_wingRotations, Quaternion.identity, 0, wings.Length);
+            Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
+            Array.Fill(_wingRotationsFromStrafe, Quaternion.identity, 0, wings.Length);
         }
 
         void Update()
@@ -155,7 +157,15 @@ namespace DroneMovement
                 _isPowered ? baseThrottleForce : 0, 
                 dT
             );
-            CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsStrafeFactor);
+            CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
+            for (int i = 0; i < wingsCount; i++)
+            {
+                wings[i].rotation = Quaternion.Slerp(
+                    wings[i].rotation,
+                    _wingRotationsFromStrafe[i] * _wingRotations[i],
+                    dT
+                );
+            }
         }
 
         // action for the attached game object
@@ -188,7 +198,7 @@ namespace DroneMovement
             ));
             xzPlane.Tilt(v);
             /*/
-            MovementXZ(v);
+            MovementXZ();
             //*/
         }
 
@@ -229,11 +239,12 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
-                RotateWingAndExertForce(
-                    rigidbody, 
+                AddWingRotationAndTorque(
                     wings[i], 
                     d, 
-                    d * throttleForce
+                    d * throttleForce * v, 
+                    ref _wingRotations[i], 
+                    rigidbody
                 );
             }
         }
@@ -242,48 +253,61 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = 1f;
-                RotateWingAndExertForce(
-                    rigidbody,
+                AddWingRotationAndTorque(
                     wings[i],
                     d,
-                    d * throttleForce
+                    d * throttleForce * v, 
+                    ref _wingRotations[i], 
+                    rigidbody
                 );
             }
         }
-        private void MovementXZ(Vector2 v)
+        private void MovementXZ()
         {
-            switch (wingsCount)
+            for (int i = 0; i < wingsCount; i++)
             {
-                case 6:
-                    break;
-                case 4:
-                    break;
+                float d = (float) WingDirAtOrder(i);
+                AddWingRotationAndTorque(
+                    wings[i],
+                    d,
+                    d * throttleForce * _wingsXzDistances[i],
+                    ref _wingRotationsFromStrafe[i],
+                    rigidbody
+                );
             }
         }
 
         /*
          * Torque -> Left Thumb -> Apply Up -> Spins Clockwise
-         * Wing's Torque Exerted to its Body -> Right Thumb ->
+         * Wing's Torque Exerted to its Body -> Right Thumb:
          *  Wing Spins Counterclockwise -> Rotates the body Clockwise -> Should be Applying Up
          */
         
         // drone animation (unit)
-        
+
         /// <summary>
-        /// Rotates `w`ing in `d` direction by force of `f`,
-        /// and apply torque to the `b`ody the wing is attached to.
+        /// Adds rotation for `w`ing in `d`irection by `f`orce to `q`uaternion variable,
+        /// and apply torque and force to the `b`ody the wing is attached to.
         /// </summary>
-        /// <param name="b">Rigidbody of the body the wing is attached to.</param>
         /// <param name="w">Transform of the wing to rotate.</param>
         /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
         /// <param name="f">Amount of the force to apply.</param>
-        private void RotateWingAndExertForce(Rigidbody b, Transform w, float d, float f)
+        /// <param name="q">Variable to store the rotation of the wing.</param>
+        /// <param name="b">Rigidbody of the body the wing is attached to.</param>
+        private void AddWingRotationAndTorque(
+            Transform w,
+            float d,
+            float f,
+            ref Quaternion q,
+            Rigidbody b
+        )
         {
-            w.Rotate(
+            q *= Quaternion.Euler(
                 0, 
                 d * _wingRotationMultiplier * (_currentPoweredThrottle + f),
                 0
             );
+            
             b.AddRelativeTorque(
                 -d * Vector3.up * (_currentPoweredThrottle + f),
                 ForceMode.Acceleration
