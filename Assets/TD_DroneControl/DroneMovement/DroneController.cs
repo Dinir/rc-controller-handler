@@ -42,11 +42,11 @@ namespace DroneMovement
 
         void Awake()
         {
-            Handler = new();
-            GeneralHandler = new();
+            Handler = new FsSm600Handler();
+            GeneralHandler = new GeneralInputHandler();
             HandlerFound = Handler.Device != null;
-            PrevAxes = new();
-            GeneralAxes = new();
+            PrevAxes = new SextupleAxesManager();
+            GeneralAxes = new SextupleAxesManager();
             
             Handler.Axes.SetMaxValueLeft(rcControllerMaxValue * Vector2.one);
             Handler.Axes.SetMaxValueRight(rcControllerMaxValue * Vector2.one);

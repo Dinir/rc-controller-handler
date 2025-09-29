@@ -31,7 +31,6 @@ namespace ControlHandler
                 Mathf.Clamp(value.y / MaxValue[1], -MaxValue[1], MaxValue[1])
             );
         }
-
         public Vector2 Right
         {
             get => _right;
@@ -40,13 +39,11 @@ namespace ControlHandler
                 Mathf.Clamp(value.y / MaxValue[3], -MaxValue[3], MaxValue[3])
             );
         }
-
         public float Aux
         {
             get => _aux;
             set => _aux = Mathf.Clamp(value / MaxValue[4], -MaxValue[4], MaxValue[4]);
         }
-
         public float Trigger
         {
             get => _trigger;
@@ -113,6 +110,7 @@ namespace ControlHandler
             return _changed;
         }
 
+        // ReSharper disable once MemberCanBePrivate.Global
         public SextupleAxesManager(Vector2? l, Vector2? r, float? a, float? t)
         {
             MaxValue = new SextupleAxesManager(new(1f, 1f), new(1f, 1f), 1f, 1f, true);
@@ -128,6 +126,8 @@ namespace ControlHandler
         }
 
         // for private instantiation to prevent recursive issues
+        // ReSharper disable once GrammarMistakeInComment
+        // ReSharper disable once UnusedParameter.Local
         private SextupleAxesManager(Vector2 l, Vector2 r, float a, float t, bool _)
         {
             MaxValue = null;
