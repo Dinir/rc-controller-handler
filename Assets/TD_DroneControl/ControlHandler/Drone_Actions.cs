@@ -106,7 +106,7 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""type"": ""Value"",
                     ""id"": ""19bd306c-a823-495f-92c9-e4592cf98a5d"",
                     ""expectedControlType"": ""Vector2"",
-                    ""processors"": ""InvertVector2(invertX=false)"",
+                    ""processors"": ""InvertVector2(invertX=false,invertY=false)"",
                     ""interactions"": """",
                     ""initialStateCheck"": true
                 },
