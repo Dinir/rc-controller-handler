@@ -42,12 +42,12 @@ namespace DroneMovement
         [Header("Movement")] 
         [SerializeField] private float baseThrottleForce = .1f;
         [SerializeField] private float throttleForce = .1f;
-        [SerializeField] private float rotationalMultiplier = 40f;
+        [SerializeField] private float rotationalMultiplier = 40f; // for movement
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
         private bool _isPowered;
         private float _currentPoweredThrottle;
-        private float _wingRotationMultiplier = 16f;
+        private float _wingRotationMultiplier = 16f; // for cosmetic wing rotation
         
         private Vector3 _movV;
         private Quaternion _rotQ;
@@ -136,11 +136,14 @@ namespace DroneMovement
             }
             
             // execute movement
-            transform.localRotation = Quaternion.Slerp(
+            // -- ROTATION SECTION --
+            
+            transform.localRotation = Quaternion.SlerpUnclamped(
                 transform.localRotation,
                 _rotQ,
                 dT
             );
+            // -- END OF ROTATION SECTION --
             transform.localPosition = Vector3.Lerp(
                 transform.localPosition,
                 _movV,
@@ -151,6 +154,16 @@ namespace DroneMovement
                 _isPowered ? baseThrottleForce : 0, 
                 dT
             );
+            
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float) WingDirAtOrder(i);
+                AddWingRotation(
+                    d, 
+                    d, 
+                    ref _wingRotations[i]
+                );
+            }
             CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             for (int i = 0; i < wingsCount; i++)
             {
@@ -283,15 +296,13 @@ namespace DroneMovement
         // drone animation (unit)
 
         /// <summary>
-        /// Adds rotation for `w`ing in `d`irection by `f`orce to `q`uaternion variable.
+        /// Adds rotation for a wing in `d`irection by `f`orce to its `q`uaternion variable.
         /// This is purely for cosmetic purposes.
         /// </summary>
-        /// <param name="w">Transform of the wing to rotate.</param>
         /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
         /// <param name="f">Amount of the force to apply.</param>
         /// <param name="q">Variable to store the rotation of the wing.</param>
         private void AddWingRotation(
-            Transform w,
             float d,
             float f,
             ref Quaternion q
@@ -320,7 +331,7 @@ namespace DroneMovement
             Rigidbody b
         )
         {
-            AddWingRotation(w, d, f, ref q);
+            AddWingRotation(d, f, ref q);
             
             b.AddRelativeTorque(
                 -d * Vector3.up * (_currentPoweredThrottle + f),
