@@ -40,9 +40,9 @@ namespace DroneMovement
         [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
         [Header("Movement")] 
-        [SerializeField] private float baseThrottleForce = 1f;
-        [SerializeField] private float throttleForce = 1f;
-        [SerializeField] private float zActionMaxRate = 1f;
+        [SerializeField] private float baseThrottleForce = .1f;
+        [SerializeField] private float throttleForce = .1f;
+        [SerializeField] private float rotationalMultiplier = 40f;
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
         private bool _isPowered;
@@ -112,6 +112,8 @@ namespace DroneMovement
 
         void Update()
         {
+            float dT = Time.deltaTime;
+            
             // for RC Controller
             if (HandlerFound)
             {
@@ -122,7 +124,7 @@ namespace DroneMovement
             }
             else
             {
-                HandlerPollTime += Time.deltaTime;
+                HandlerPollTime += dT;
                 if (HandlerPollTime >= HandlerPollTimer)
                 {
                     HandlerPollTime = 0;
@@ -140,7 +142,6 @@ namespace DroneMovement
                 transform.localRotation,
                 _rotQ,
                 dT
-                
             );
             transform.localPosition = Vector3.Lerp(
                 transform.localPosition,
@@ -176,7 +177,7 @@ namespace DroneMovement
             );
             _rotQ = Quaternion.Euler(
                 _rotQ.eulerAngles.x,
-                _rotQ.eulerAngles.y + throttleForce * v.x,
+                _rotQ.eulerAngles.y + throttleForce * rotationalMultiplier * v.x,
                 _rotQ.eulerAngles.z
             );
             /*/
