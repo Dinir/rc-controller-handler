@@ -136,21 +136,7 @@ namespace DroneMovement
             }
             
             // execute movement
-            // a small piece of rotation
-            Quaternion rotationDelta = _rotQ * Quaternion.Inverse(transform.localRotation);
-            // enforce hemisphere
-            if (rotationDelta.w < 0f)
-            {
-                rotationDelta.x = -rotationDelta.x;
-                rotationDelta.y = -rotationDelta.y;
-                rotationDelta.z = -rotationDelta.z;
-                rotationDelta.w = -rotationDelta.w;
-            }
-            // apply the rotation
-            transform.localRotation *= Quaternion.Slerp(
-                Quaternion.identity, rotationDelta, 1f - Mathf.Exp(-12f * dT)
-            );
-            transform.localRotation = Quaternion.Lerp(
+            transform.localRotation = Quaternion.Slerp(
                 transform.localRotation,
                 _rotQ,
                 dT
