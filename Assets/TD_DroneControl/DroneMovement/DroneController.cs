@@ -29,7 +29,7 @@ namespace DroneMovement
         [Header("Properties")] 
         [SerializeField] private GameObject model;
 
-        [SerializeField] private Rigidbody rigidbody;
+        [SerializeField] private Rigidbody rigidBody;
         [SerializeField] private int wingsCount = 6;
         [SerializeField] private Transform[] wings = new Transform[6];
 
@@ -161,12 +161,14 @@ namespace DroneMovement
                     dT
                 );
             }
+            // Debug.Log($"{wings[0].rotation},{wings[1].rotation},{wings[2].rotation}," +
+            //           $"{wings[3].rotation},{wings[4].rotation},{wings[5].rotation}");
         }
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
-            /*/ apply force directly to the body
+            //*/ apply force directly to the body
             _movV += new Vector3(
                 0, 
                 throttleForce * v.y, 
@@ -174,7 +176,7 @@ namespace DroneMovement
             );
             _rotQ = Quaternion.Euler(
                 _rotQ.eulerAngles.x,
-                _rotQ.eulerAngles.y + rotationForce * v.x,
+                _rotQ.eulerAngles.y + throttleForce * v.x,
                 _rotQ.eulerAngles.z
             );
             /*/
@@ -185,14 +187,15 @@ namespace DroneMovement
 
         public void ActionRight(Vector2 v)
         {
-            /*/ apply force directly to the body
+            //*/ apply force directly to the body
+            xzPlane.Tilt(v);
             _movV += transform.TransformDirection(new Vector3(
                 throttleForce * v.x, 
                 0,
                 throttleForce * v.y
             ));
-            xzPlane.Tilt(v);
             /*/
+            xzPlane.Tilt(v);
             MovementXZ();
             //*/
         }
@@ -239,7 +242,7 @@ namespace DroneMovement
                     d, 
                     d * throttleForce * v, 
                     ref _wingRotations[i], 
-                    rigidbody
+                    rigidBody
                 );
             }
         }
@@ -253,7 +256,7 @@ namespace DroneMovement
                     d,
                     d * throttleForce * v, 
                     ref _wingRotations[i], 
-                    rigidbody
+                    rigidBody
                 );
             }
         }
@@ -267,7 +270,7 @@ namespace DroneMovement
                     d,
                     d * throttleForce * _wingsXzDistances[i],
                     ref _wingRotationsFromStrafe[i],
-                    rigidbody
+                    rigidBody
                 );
             }
         }
@@ -280,6 +283,27 @@ namespace DroneMovement
         
         // drone animation (unit)
 
+        /// <summary>
+        /// Adds rotation for `w`ing in `d`irection by `f`orce to `q`uaternion variable.
+        /// This is purely for cosmetic purposes.
+        /// </summary>
+        /// <param name="w">Transform of the wing to rotate.</param>
+        /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
+        /// <param name="f">Amount of the force to apply.</param>
+        /// <param name="q">Variable to store the rotation of the wing.</param>
+        private void AddWingRotation(
+            Transform w,
+            float d,
+            float f,
+            ref Quaternion q
+        )
+        {
+            q *= Quaternion.Euler(
+                0, 
+                d * _wingRotationMultiplier * (_currentPoweredThrottle + f),
+                0
+            );
+        }
         /// <summary>
         /// Adds rotation for `w`ing in `d`irection by `f`orce to `q`uaternion variable,
         /// and apply torque and force to the `b`ody the wing is attached to.
@@ -297,11 +321,7 @@ namespace DroneMovement
             Rigidbody b
         )
         {
-            q *= Quaternion.Euler(
-                0, 
-                d * _wingRotationMultiplier * (_currentPoweredThrottle + f),
-                0
-            );
+            AddWingRotation(w, d, f, ref q);
             
             b.AddRelativeTorque(
                 -d * Vector3.up * (_currentPoweredThrottle + f),
