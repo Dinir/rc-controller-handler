@@ -12,7 +12,6 @@ namespace DroneMovement
     public enum WingPos { Front = 0, Middle = 1, Back = 2 }
      
     [RequireComponent(typeof(PlayerInput))]
-    [RequireComponent(typeof(Rigidbody))]
     public class DroneController : MonoBehaviour
     {
         internal FsSm600Handler Handler;
@@ -22,9 +21,7 @@ namespace DroneMovement
         internal readonly float HandlerPollTimer = 3f;
         internal SextupleAxesManager PrevAxes;
         internal SextupleAxesManager GeneralAxes;
-        internal bool[] Changed = new bool[6];
 
-        private Rigidbody _rigidBody;
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
         private readonly float[] _wingsXzDistances = new float[6];
         private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
@@ -45,7 +42,6 @@ namespace DroneMovement
         [Header("Movement")] 
         [SerializeField] private float baseThrottleForce = 1f;
         [SerializeField] private float throttleForce = 1f;
-        [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float zActionMaxRate = 1f;
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
@@ -74,7 +70,6 @@ namespace DroneMovement
             GeneralAxes.SetMaxValueLeft(generalMaxValue);
             GeneralAxes.SetMaxValueRight(generalMaxValue);
 
-            _rigidBody = GetComponent<Rigidbody>();
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
             // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
