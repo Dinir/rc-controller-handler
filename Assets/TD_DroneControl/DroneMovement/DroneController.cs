@@ -137,7 +137,6 @@ namespace DroneMovement
             
             // execute movement
             // -- ROTATION SECTION --
-            
             transform.localRotation = Quaternion.SlerpUnclamped(
                 transform.localRotation,
                 _rotQ,
