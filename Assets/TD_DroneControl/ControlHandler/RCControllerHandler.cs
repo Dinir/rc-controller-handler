@@ -68,7 +68,7 @@ namespace ControlHandler
                 Changes = Axes.GetChanges(PrevAxes);
                 return true;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Device = null;
                 Debug.LogWarning("Connection to RC controller is lost.");
