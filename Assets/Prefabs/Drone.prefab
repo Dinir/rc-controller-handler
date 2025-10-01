@@ -172,9 +172,9 @@ Rigidbody:
   m_GameObject: {fileID: 6241325969939877603}
   serializedVersion: 5
   m_Mass: 5
-  m_LinearDamping: 0.05
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_LinearDamping: 0.04
+  m_AngularDamping: 0.04
+  m_CenterOfMass: {x: 0, y: -0.45, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -183,7 +183,7 @@ Rigidbody:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_ImplicitCom: 1
+  m_ImplicitCom: 0
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
@@ -216,8 +216,10 @@ MonoBehaviour:
   generalDeadzone: {x: 0.075, y: 0.075}
   rcControllerMaxValue: {x: 0.9, y: 0.9}
   generalMaxValue: {x: 1, y: 1}
-  baseThrottleForce: 0.1
-  throttleForce: 0.1
+  baseThrottleForce: 5
+  throttleForce: 5
+  velocityResponse: 6
+  angularResponse: 6
   rotationalMultiplier: 20
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}

@@ -44,6 +44,8 @@ namespace DroneMovement
         [Header("Movement")] 
         [SerializeField] private float baseThrottleForce = .1f;
         [SerializeField] private float throttleForce = .1f;
+        [SerializeField] private float velocityResponse = 6f;
+        [SerializeField] private float angularResponse = 6f;
         [SerializeField] private float rotationalMultiplier = 40f; // for movement
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
@@ -51,8 +53,11 @@ namespace DroneMovement
         private float _currentPoweredThrottle;
         private float _wingRotationMultiplier = 16f; // for cosmetic wing rotation
         
-        private Vector3 _movV;
-        private Quaternion _rotQ;
+        private Vector3 _movV = Vector3.zero;
+        private Vector3 _movVSmoothed = Vector3.zero;
+        private Vector3 _currentUp;
+        private Quaternion _rotQ = Quaternion.identity;
+        private Quaternion _rotQSmoothed = Quaternion.identity;
 
         void Awake()
         {
@@ -118,7 +123,6 @@ namespace DroneMovement
 
         void Update()
         {
-            float dT = Time.deltaTime;
             
             // for RC Controller
             if (HandlerFound)
@@ -132,7 +136,7 @@ namespace DroneMovement
             }
             else
             {
-                HandlerPollTime += dT;
+                HandlerPollTime += Time.deltaTime;
                 if (HandlerPollTime >= HandlerPollTimer)
                 {
                     HandlerPollTime = 0;
@@ -151,24 +155,47 @@ namespace DroneMovement
                 }
             }
             
-            // execute movement
-            // -- ROTATION SECTION --
-            rigidBody.MoveRotation(Quaternion.SlerpUnclamped(
-                rigidBody.rotation,
-                _rotQ,
-                dT
-            ));
-            // -- END OF ROTATION SECTION --
-            transform.localPosition = Vector3.Lerp(
-                transform.localPosition,
-                _movV,
-                dT
-            );
+            // for general controllers
+            
+        }
+        void FixedUpdate()
+        {
+            float fdt = Time.fixedDeltaTime;
             _currentPoweredThrottle = Mathf.Lerp(
                 _currentPoweredThrottle, 
                 _isPowered ? baseThrottleForce : 0, 
-                dT
+                fdt
             );
+
+            _movVSmoothed = Vector3.Lerp(
+                _movVSmoothed,
+                transform.right * _movV.x +
+                Vector3.up * _movV.y +
+                transform.forward * _movV.z,
+                velocityResponse * fdt
+            );
+            //*/
+            rigidBody.MovePosition(
+                rigidBody.position + _movVSmoothed * fdt
+            );
+            /*/
+            rigidBody.linearVelocity = _movVSmoothed;
+            //*/
+
+            _rotQSmoothed = Quaternion.Slerp(
+                _rotQSmoothed,
+                _rotQ,
+                angularResponse * fdt
+            );
+
+            Quaternion deltaRotation = Quaternion.Slerp(
+                Quaternion.identity,
+                _rotQSmoothed,
+                fdt
+            );
+            rigidBody.MoveRotation(Quaternion.Normalize(
+                rigidBody.rotation * deltaRotation
+            ));
             
             for (int i = 0; i < wingsCount; i++)
             {
@@ -185,7 +212,7 @@ namespace DroneMovement
                 wings[i].localRotation = Quaternion.Slerp(
                     wings[i].localRotation,
                     _wingRotationsFromStrafe[i] * _wingRotations[i],
-                    dT
+                    angularResponse * _wingsXzDistances[i] * fdt
                 );
             }
             // Debug.Log($"{wings[0].rotation},{wings[1].rotation},{wings[2].rotation}," +
@@ -196,16 +223,12 @@ namespace DroneMovement
         public void ActionLeft(Vector2 v)
         {
             //*/ apply force directly to the body
-            _movV += new Vector3(
-                0, 
-                throttleForce * v.y, 
-                0
-            );
+            _movV.y = throttleForce * v.y; // target local velocity
             _rotQ = Quaternion.Euler(
-                _rotQ.eulerAngles.x,
-                _rotQ.eulerAngles.y + throttleForce * rotationalMultiplier * v.x,
-                _rotQ.eulerAngles.z
-            );
+                0,
+                throttleForce * rotationalMultiplier * v.x,
+                0
+            ); // target angular velocity
             /*/
             MovementRotate(v.x);
             MovementY(v.y);
@@ -216,11 +239,15 @@ namespace DroneMovement
         {
             //*/ apply force directly to the body
             xzPlane.Tilt(v);
-            _movV += transform.TransformDirection(new Vector3(
-                throttleForce * v.x, 
-                0,
-                throttleForce * v.y
-            ));
+            _movV.x = throttleForce * v.x;
+            _movV.z = throttleForce * v.y;
+            
+            //apply banking motion
+            _rotQ = Quaternion.Euler(
+                rotationalMultiplier * -v.y,
+                _rotQ.eulerAngles.y,
+                rotationalMultiplier * -v.x
+            );
             /*/
             xzPlane.Tilt(v);
             MovementXZ();
@@ -233,6 +260,7 @@ namespace DroneMovement
 
         public void ActionTrigger(float v)
         {
+            
         }
         
         /* Wings Position
