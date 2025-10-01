@@ -167,8 +167,8 @@ namespace DroneMovement
             CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             for (int i = 0; i < wingsCount; i++)
             {
-                wings[i].rotation = Quaternion.Slerp(
-                    wings[i].rotation,
+                wings[i].localRotation = Quaternion.Slerp(
+                    wings[i].localRotation,
                     _wingRotationsFromStrafe[i] * _wingRotations[i],
                     dT
                 );
