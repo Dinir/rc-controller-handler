@@ -155,7 +155,7 @@ Transform:
   m_GameObject: {fileID: 6241325969939877603}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.925, z: -20}
+  m_LocalPosition: {x: 0, y: 0.925, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -218,7 +218,7 @@ MonoBehaviour:
   generalMaxValue: {x: 1, y: 1}
   baseThrottleForce: 0.1
   throttleForce: 0.1
-  rotationalMultiplier: 40
+  rotationalMultiplier: 20
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}
 --- !u!114 &2657259198581272960
