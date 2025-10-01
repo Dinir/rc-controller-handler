@@ -21,6 +21,8 @@ namespace DroneMovement
         internal readonly float HandlerPollTimer = 3f;
         internal SextupleAxesManager PrevAxes;
         internal SextupleAxesManager GeneralAxes;
+        internal bool GamepadTriggerToggle; // from OnTrigger
+        internal float KnobMix; // from OnAux
 
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
         private readonly float[] _wingsXzDistances = new float[6];
@@ -62,11 +64,15 @@ namespace DroneMovement
             
             Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
             Handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
+            PrevAxes.SetDeadzoneLeft(generalDeadzone);
+            PrevAxes.SetDeadzoneRight(generalDeadzone);
             GeneralAxes.SetDeadzoneLeft(generalDeadzone);
             GeneralAxes.SetDeadzoneRight(generalDeadzone);
             
             Handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
             Handler.Axes.SetMaxValueRight(rcControllerMaxValue);
+            PrevAxes.SetMaxValueLeft(generalMaxValue);
+            PrevAxes.SetMaxValueRight(generalMaxValue);
             GeneralAxes.SetMaxValueLeft(generalMaxValue);
             GeneralAxes.SetMaxValueRight(generalMaxValue);
 
@@ -121,6 +127,8 @@ namespace DroneMovement
                 if (!HandlerFound) return;
                 
                 Handler.SendMessages(gameObject, Handler.Activeness);
+                // this variable made for gamepad should obey when there's an rc controller
+                GamepadTriggerToggle = Mathf.Approximately(Handler.Axes.Trigger, 1f);
             }
             else
             {
@@ -132,6 +140,14 @@ namespace DroneMovement
                         FsSm600Handler.Names, FsSm600Handler.ControlNames
                     );
                     HandlerFound = Handler.Device != null;
+                }
+                // when there's no rc controller, the variable simulates a toggle switch
+                if (
+                    Mathf.Approximately(GeneralAxes.Trigger, 1f) &&
+                    !Mathf.Approximately(PrevAxes.Trigger, 1f)
+                )
+                {
+                    GamepadTriggerToggle = !GamepadTriggerToggle;
                 }
             }
             
@@ -368,14 +384,33 @@ namespace DroneMovement
         }
 
         // event handling for generic controllers (gamepads and keyboards + mouses)
-        public void OnLeft(InputValue v) => 
-            ActionLeft(GeneralHandler.OnLeft(v));
-        public void OnRight(InputValue v) => 
-            ActionRight(GeneralHandler.OnRight(v));
-        public void OnAux(InputValue v) => 
-            ActionAux(GeneralHandler.OnAux(v));
-        public void OnTrigger(InputValue v) => 
-            ActionTrigger(GeneralHandler.OnTrigger(v));
+        public void OnLeft(InputValue v)
+        {
+            PrevAxes.Left = GeneralAxes.Left;
+            GeneralAxes.Left = GeneralHandler.OnLeft(v);
+            ActionLeft(GeneralAxes.Left);
+        }
+
+        public void OnRight(InputValue v)
+        {
+            PrevAxes.Right = GeneralAxes.Right;
+            GeneralAxes.Right = GeneralHandler.OnRight(v);
+            ActionRight(GeneralAxes.Right);
+        }
+
+        public void OnAux(InputValue v)
+        {
+            PrevAxes.Aux = GeneralAxes.Aux;
+            GeneralAxes.Aux = GeneralHandler.OnAux(v);
+            ActionAux(GeneralAxes.Aux);
+        }
+
+        public void OnTrigger(InputValue v)
+        {
+            PrevAxes.Trigger = GeneralAxes.Trigger;
+            GeneralAxes.Trigger = GeneralHandler.OnTrigger(v);
+            ActionTrigger(GeneralAxes.Trigger);
+        }
 
         // event handling for RC Controllers
         public void OnLeft(int _) => 
