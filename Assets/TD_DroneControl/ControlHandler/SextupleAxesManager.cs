@@ -21,8 +21,10 @@ namespace ControlHandler
         private float _trigger;
         private readonly SextupleAxesManager _deadzone;
         private readonly SextupleAxesManager _maxValue;
-        private const float Epsilon = .000001f;
         private readonly bool[] _changed = new bool[6];
+        private const float Epsilon = 1e-6f;
+        private readonly bool[] _active = new bool[6];
+        private const float Hysteresis = 1e-3f; // for dual threshold for activeness check
 
         public Vector2 Left
         {
@@ -146,10 +148,22 @@ namespace ControlHandler
             {
                 _changed[i] =
                     Mathf.Abs(this[i] - prev[i]) > e ||
-                    Mathf.Abs(this[i] - _deadzone[i]) > 0;
+                    Mathf.Abs(this[i]) > _deadzone[i];
             }
 
             return _changed;
+        }
+        public bool[] GetActiveness()
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                float v = Mathf.Abs(this[i]);
+                _active[i] = _active[i] ?
+                    v > Mathf.Max(0f, _deadzone[i] - Hysteresis) :
+                    v > _deadzone[i] + Hysteresis;
+            }
+
+            return _active;
         }
 
         // ReSharper disable once MemberCanBePrivate.Global

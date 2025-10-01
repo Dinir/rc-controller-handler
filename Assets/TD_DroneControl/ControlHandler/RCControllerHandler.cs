@@ -15,6 +15,7 @@ namespace ControlHandler
         internal readonly SextupleAxesManager Axes = new();
         internal readonly SextupleAxesManager PrevAxes = new();
         internal bool[] Changes = new bool[6];
+        internal bool[] Activeness = new bool[6];
 
         public RCControllerHandler(IEnumerable<string> names, string[] controls)
         {
@@ -66,6 +67,7 @@ namespace ControlHandler
                 }
 
                 Changes = Axes.GetChanges(PrevAxes);
+                Activeness = Axes.GetActiveness();
                 return true;
             }
             catch (Exception)
@@ -104,21 +106,21 @@ namespace ControlHandler
             return Axes.Trigger;
         }
 
-        public void SendMessages(GameObject receiver, bool[] changes)
+        public void SendMessages(GameObject receiver, bool[] stateChanges)
         {
-            if (changes[0] || changes[1])
+            if (stateChanges[0] || stateChanges[1])
                 receiver.SendMessage(
                     "OnLeft", 0, SendMessageOptions.DontRequireReceiver
                 );
-            if (changes[2] || changes[3])
+            if (stateChanges[2] || stateChanges[3])
                 receiver.SendMessage(
                     "OnRight", 0, SendMessageOptions.DontRequireReceiver
                 );
-            if (changes[4])
+            if (stateChanges[4])
                 receiver.SendMessage(
                     "OnAux", 0, SendMessageOptions.DontRequireReceiver
                 );
-            if (changes[5])
+            if (stateChanges[5])
                 receiver.SendMessage(
                     "OnTrigger", 0, SendMessageOptions.DontRequireReceiver
                 );

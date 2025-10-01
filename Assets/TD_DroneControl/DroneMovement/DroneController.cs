@@ -120,7 +120,7 @@ namespace DroneMovement
                 HandlerFound = Handler.Poll();
                 if (!HandlerFound) return;
                 
-                Handler.SendMessages(gameObject, Handler.Changes);
+                Handler.SendMessages(gameObject, Handler.Activeness);
             }
             else
             {
@@ -137,11 +137,11 @@ namespace DroneMovement
             
             // execute movement
             // -- ROTATION SECTION --
-            transform.localRotation = Quaternion.SlerpUnclamped(
-                transform.localRotation,
+            rigidBody.MoveRotation(Quaternion.SlerpUnclamped(
+                rigidBody.rotation,
                 _rotQ,
                 dT
-            );
+            ));
             // -- END OF ROTATION SECTION --
             transform.localPosition = Vector3.Lerp(
                 transform.localPosition,
