@@ -32,8 +32,8 @@ namespace ControlHandler
         {
             try
             {
-                // from generic controller trigger or rc controller knob
-                Aux = Mathf.Clamp(-1 + 2f * v.Get<float>(), -1f, 1f);
+                // // from generic controller trigger or rc controller knob
+                // Aux = Mathf.Clamp(-1 + 2f * v.Get<float>(), -1f, 1f);
             }
             catch (InvalidOperationException)
             {

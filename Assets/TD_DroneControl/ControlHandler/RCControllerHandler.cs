@@ -95,8 +95,9 @@ namespace ControlHandler
         public virtual float OnAux()
         {
             // Debug.Log($"RC Aux: {Axes.Aux}");
+            
 
-            return Axes.Aux;
+            return AuxNormalize(Axes.Aux);
         }
 
         public virtual float OnTrigger()
@@ -125,5 +126,8 @@ namespace ControlHandler
                     "OnTrigger", 0, SendMessageOptions.DontRequireReceiver
                 );
         }
+
+        static float AuxNormalize(float v) =>
+            v >= 0 && v <= 1f ? v : Mathf.Clamp01((v + 1f) * .5f);
     }
 }

@@ -253,6 +253,10 @@ namespace DroneMovement
             //*/
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="v">Received Aux value. Expected to be in the range of [0, 1].</param>
         public void ActionAux(float v)
         {
         }
