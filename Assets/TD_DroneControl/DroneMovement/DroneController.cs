@@ -165,12 +165,17 @@ namespace DroneMovement
         void FixedUpdate()
         {
             float fdt = Time.fixedDeltaTime;
+            
+            // update powered state
             _currentPoweredThrottle = Mathf.Lerp(
                 _currentPoweredThrottle, 
                 isPowered ? baseThrottleForce : 0, 
                 fdt
             );
 
+            
+            /* directly control the body
+            // compute body movement
             _movVSmoothed = Vector3.Lerp(
                 _movVSmoothed,
                 transform.right * _movV.x +
@@ -178,29 +183,33 @@ namespace DroneMovement
                 transform.forward * _movV.z,
                 velocityResponse * fdt
             );
-            //*/
+            // apply body movement
+            //#1#
             rigidBody.MovePosition(
                 rigidBody.position + _movVSmoothed * fdt
             );
-            /*/
+            /#1#
             rigidBody.linearVelocity = _movVSmoothed;
-            //*/
+            //#1#
 
+            // compute body rotation
             _rotQSmoothed = Quaternion.Slerp(
                 _rotQSmoothed,
                 _rotQ,
                 angularResponse * fdt
             );
-
             Quaternion deltaRotation = Quaternion.Slerp(
                 Quaternion.identity,
                 _rotQSmoothed,
                 fdt
             );
+            // apply body rotation
             rigidBody.MoveRotation(Quaternion.Normalize(
                 rigidBody.rotation * deltaRotation
             ));
+            */
             
+            // compute wing rotations
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
@@ -230,14 +239,17 @@ namespace DroneMovement
                     Space.Self
                 );
             }
-            // Debug.Log($"{wings[0].rotation},{wings[1].rotation},{wings[2].rotation}," +
-            //           $"{wings[3].rotation},{wings[4].rotation},{wings[5].rotation}");
+            /*/
+            Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
+            /*/
+            Debug.Log($"{wings[0].localRotation},{wings[1].localRotation},{wings[2].localRotation},{wings[3].localRotation},{wings[4].localRotation},{wings[5].localRotation}");
+            //*/
         }
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
-            //*/ apply force directly to the body
+            /*/ apply force directly to the body
             _movV.y = throttleForce * v.y; // target local velocity
             _rotQ = Quaternion.Euler(
                 0,
