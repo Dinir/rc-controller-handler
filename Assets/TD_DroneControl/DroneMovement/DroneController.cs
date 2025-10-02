@@ -67,19 +67,7 @@ namespace DroneMovement
             PrevAxes = new SextupleAxesManager();
             GeneralAxes = new SextupleAxesManager();
             
-            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
-            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
-            PrevAxes.SetDeadzoneLeft(generalDeadzone);
-            PrevAxes.SetDeadzoneRight(generalDeadzone);
-            GeneralAxes.SetDeadzoneLeft(generalDeadzone);
-            GeneralAxes.SetDeadzoneRight(generalDeadzone);
-            
-            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
-            Handler.Axes.SetMaxValueRight(rcControllerMaxValue);
-            PrevAxes.SetMaxValueLeft(generalMaxValue);
-            PrevAxes.SetMaxValueRight(generalMaxValue);
-            GeneralAxes.SetMaxValueLeft(generalMaxValue);
-            GeneralAxes.SetMaxValueRight(generalMaxValue);
+            UpdateAxisRange();
 
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
@@ -119,6 +107,23 @@ namespace DroneMovement
             Array.Fill(_wingRotations, Quaternion.identity, 0, wings.Length);
             Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
             Array.Fill(_wingRotationsFromStrafe, Quaternion.identity, 0, wings.Length);
+        }
+
+        public void UpdateAxisRange()
+        {
+            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
+            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
+            PrevAxes.SetDeadzoneLeft(generalDeadzone);
+            PrevAxes.SetDeadzoneRight(generalDeadzone);
+            GeneralAxes.SetDeadzoneLeft(generalDeadzone);
+            GeneralAxes.SetDeadzoneRight(generalDeadzone);
+            
+            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
+            Handler.Axes.SetMaxValueRight(rcControllerMaxValue);
+            PrevAxes.SetMaxValueLeft(generalMaxValue);
+            PrevAxes.SetMaxValueRight(generalMaxValue);
+            GeneralAxes.SetMaxValueLeft(generalMaxValue);
+            GeneralAxes.SetMaxValueRight(generalMaxValue);
         }
 
         void Update()
