@@ -204,10 +204,10 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
-                AddWingRotation(
+                ChangeWingRotation(
                     d, 
-                    d, 
-                    ref _wingRotations[i]
+                    isPowered ? d : 0, 
+                    out _wingRotations[i]
                 );
             }
             CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
@@ -301,11 +301,11 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
-                AddWingRotationAndTorque(
+                ChangeWingRotationAndAddTorque(
                     wings[i], 
                     d, 
                     d * throttleForce * v, 
-                    ref _wingRotations[i], 
+                    out _wingRotations[i], 
                     rigidBody
                 );
             }
@@ -315,11 +315,11 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = 1f;
-                AddWingRotationAndTorque(
+                ChangeWingRotationAndAddTorque(
                     wings[i],
                     d,
                     d * throttleForce * v, 
-                    ref _wingRotations[i], 
+                    out _wingRotations[i], 
                     rigidBody
                 );
             }
@@ -329,11 +329,11 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
-                AddWingRotationAndTorque(
+                ChangeWingRotationAndAddTorque(
                     wings[i],
                     d,
                     d * throttleForce * _wingsXzDistances[i],
-                    ref _wingRotationsFromStrafe[i],
+                    out _wingRotationsFromStrafe[i],
                     rigidBody
                 );
             }
@@ -348,26 +348,26 @@ namespace DroneMovement
         // drone animation (unit)
 
         /// <summary>
-        /// Adds rotation for a wing in `d`irection by `f`orce to its `q`uaternion variable.
+        /// Change rotation of a wing in `d`irection by `f`orce to its `q`uaternion variable.
         /// This is purely for cosmetic purposes.
         /// </summary>
         /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
         /// <param name="f">Amount of the force to apply.</param>
         /// <param name="q">Variable to store the rotation of the wing.</param>
-        private void AddWingRotation(
+        private void ChangeWingRotation(
             float d,
             float f,
-            ref Quaternion q
+            out Quaternion q
         )
         {
-            q *= Quaternion.Euler(
+            q = Quaternion.Euler(
                 0, 
-                d * _wingRotationMultiplier * (_currentPoweredThrottle + f),
+                d * wingRotationMultiplier * (_currentPoweredThrottle + f),
                 0
             );
         }
         /// <summary>
-        /// Adds rotation for `w`ing in `d`irection by `f`orce to `q`uaternion variable,
+        /// Change rotation of a `w`ing in `d`irection by `f`orce to `q`uaternion variable,
         /// and apply torque and force to the `b`ody the wing is attached to.
         /// </summary>
         /// <param name="w">Transform of the wing to rotate.</param>
@@ -375,15 +375,15 @@ namespace DroneMovement
         /// <param name="f">Amount of the force to apply.</param>
         /// <param name="q">Variable to store the rotation of the wing.</param>
         /// <param name="b">Rigidbody of the body the wing is attached to.</param>
-        private void AddWingRotationAndTorque(
+        private void ChangeWingRotationAndAddTorque(
             Transform w,
             float d,
             float f,
-            ref Quaternion q,
+            out Quaternion q,
             Rigidbody b
         )
         {
-            AddWingRotation(d, f, ref q);
+            ChangeWingRotation(d, f, out q);
             
             b.AddRelativeTorque(
                 -d * Vector3.up * (_currentPoweredThrottle + f),
