@@ -21,7 +21,7 @@ namespace DroneMovement
         internal readonly float HandlerPollTimer = 3f;
         internal SextupleAxesManager PrevAxes;
         internal SextupleAxesManager GeneralAxes;
-        internal bool GamepadTriggerToggle; // from OnTrigger
+        internal bool TriggerToggle; // from OnTrigger
         internal float KnobMix; // from OnAux
 
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
@@ -42,11 +42,11 @@ namespace DroneMovement
         [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
         [Header("Movement")] 
-        [SerializeField] private float baseThrottleForce = .1f;
-        [SerializeField] private float throttleForce = .1f;
+        [SerializeField] private float baseThrottleForce = 5f;
+        [SerializeField] private float throttleForce = 5f;
         [SerializeField] private float velocityResponse = 6f;
         [SerializeField] private float angularResponse = 6f;
-        [SerializeField] private float rotationalMultiplier = 40f; // for movement
+        [SerializeField] private float rotationalMultiplier = 20f; // for movement
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
         private bool _isPowered;
@@ -123,7 +123,6 @@ namespace DroneMovement
 
         void Update()
         {
-            
             // for RC Controller
             if (HandlerFound)
             {
@@ -132,7 +131,7 @@ namespace DroneMovement
                 
                 Handler.SendMessages(gameObject, Handler.Activeness);
                 // this variable made for gamepad should obey when there's an rc controller
-                GamepadTriggerToggle = Mathf.Approximately(Handler.Axes.Trigger, 1f);
+                TriggerToggle = Mathf.Approximately(Handler.Axes.Trigger, 1f);
             }
             else
             {
@@ -151,7 +150,7 @@ namespace DroneMovement
                     !Mathf.Approximately(PrevAxes.Trigger, 1f)
                 )
                 {
-                    GamepadTriggerToggle = !GamepadTriggerToggle;
+                    TriggerToggle = !TriggerToggle;
                 }
             }
             
