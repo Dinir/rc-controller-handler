@@ -49,10 +49,10 @@ namespace DroneMovement
         [SerializeField] private float rotationalMultiplier = 20f; // for movement
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
-        private bool _isPowered;
+        [SerializeField] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
+        [SerializeField] private bool isPowered;
         private float _currentPoweredThrottle;
-        private float _wingRotationMultiplier = 16f; // for cosmetic wing rotation
-        
+
         private Vector3 _movV = Vector3.zero;
         private Vector3 _movVSmoothed = Vector3.zero;
         private Vector3 _currentUp;
@@ -72,7 +72,7 @@ namespace DroneMovement
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
             // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
-            _isPowered = true;
+            isPowered = true;
             
             if (wingsCount > 0 && wings[0] == null)
             {
@@ -167,7 +167,7 @@ namespace DroneMovement
             float fdt = Time.fixedDeltaTime;
             _currentPoweredThrottle = Mathf.Lerp(
                 _currentPoweredThrottle, 
-                _isPowered ? baseThrottleForce : 0, 
+                isPowered ? baseThrottleForce : 0, 
                 fdt
             );
 
