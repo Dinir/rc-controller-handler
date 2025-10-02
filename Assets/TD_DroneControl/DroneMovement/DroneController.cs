@@ -268,7 +268,8 @@ namespace DroneMovement
 
         public void ActionTrigger(float v)
         {
-            
+            UpdateAxisRange();
+            TriggerToggle = v > 0.5f;
         }
         
         /* Wings Position
