@@ -264,6 +264,7 @@ namespace DroneMovement
         /// <param name="v">Received Aux value. Expected to be in the range of [0, 1].</param>
         public void ActionAux(float v)
         {
+            KnobMix = v;
         }
 
         public void ActionTrigger(float v)
