@@ -210,13 +210,24 @@ namespace DroneMovement
                     out _wingRotations[i]
                 );
             }
-            CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
+            if (isPowered)
+                CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
+            else
+                Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
+            // apply wing rotations
             for (int i = 0; i < wingsCount; i++)
             {
-                wings[i].localRotation = Quaternion.Slerp(
+                Quaternion deltaWingRotation = Quaternion.Slerp(
                     wings[i].localRotation,
-                    _wingRotationsFromStrafe[i] * _wingRotations[i],
-                    angularResponse * _wingsXzDistances[i] * fdt
+                    isPowered ? _wingRotationsFromStrafe[i] * _wingRotations[i] : Quaternion.identity,
+                    _wingsXzDistances[i] * fdt
+                );
+
+                wings[i].Rotate(
+                    Quaternion
+                        .Normalize(wings[i].localRotation * deltaWingRotation)
+                        .eulerAngles,
+                    Space.Self
                 );
             }
             // Debug.Log($"{wings[0].rotation},{wings[1].rotation},{wings[2].rotation}," +
