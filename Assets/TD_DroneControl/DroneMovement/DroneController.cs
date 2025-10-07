@@ -72,7 +72,7 @@ namespace DroneMovement
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
             // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
-            isPowered = true;
+            isPowered = false;
             
             if (wingsCount > 0 && wings[0] == null)
             {
@@ -228,7 +228,9 @@ namespace DroneMovement
             {
                 Quaternion deltaWingRotation = Quaternion.Slerp(
                     wings[i].localRotation,
-                    isPowered ? _wingRotationsFromStrafe[i] * _wingRotations[i] : Quaternion.identity,
+                    isPowered ? 
+                        _wingRotationsFromStrafe[i] * _wingRotations[i] : 
+                        Quaternion.identity,
                     _wingsXzDistances[i] * fdt
                 );
 
@@ -249,6 +251,7 @@ namespace DroneMovement
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
+            if (!isPowered) return;
             /*/ apply force directly to the body
             _movV.y = throttleForce * v.y; // target local velocity
             _rotQ = Quaternion.Euler(
@@ -264,6 +267,7 @@ namespace DroneMovement
 
         public void ActionRight(Vector2 v)
         {
+            if (!isPowered) return;
             //*/ apply force directly to the body
             xzPlane.Tilt(v);
             _movV.x = throttleForce * v.x;
