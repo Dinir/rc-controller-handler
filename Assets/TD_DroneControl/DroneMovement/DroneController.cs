@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using ControlHandler;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Serialization;
 
 namespace DroneMovement
 {
@@ -223,6 +221,7 @@ namespace DroneMovement
                 CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             else
                 Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
+            
             // apply wing rotations
             for (int i = 0; i < wingsCount; i++)
             {
@@ -455,28 +454,24 @@ namespace DroneMovement
             GeneralAxes.Left = GeneralHandler.OnLeft(v);
             ActionLeft(GeneralAxes.Left);
         }
-
         public void OnRight(InputValue v)
         {
             PrevAxes.Right = GeneralAxes.Right;
             GeneralAxes.Right = GeneralHandler.OnRight(v);
             ActionRight(GeneralAxes.Right);
         }
-
         public void OnAux(InputValue v)
         {
             PrevAxes.Aux = GeneralAxes.Aux;
             GeneralAxes.Aux = GeneralHandler.OnAux(v);
             ActionAux(GeneralAxes.Aux);
         }
-
         public void OnTrigger(InputValue v)
         {
             PrevAxes.Trigger = GeneralAxes.Trigger;
             GeneralAxes.Trigger = GeneralHandler.OnTrigger(v);
             ActionTrigger(GeneralAxes.Trigger);
         }
-
         // event handling for RC Controllers
         public void OnLeft(int _) => 
             ActionLeft(Handler.OnLeft());
