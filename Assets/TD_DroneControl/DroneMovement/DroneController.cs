@@ -40,22 +40,24 @@ namespace DroneMovement
         [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
         [Header("Movement")] 
-        [SerializeField] private float baseThrottleForce = 5f;
-        [SerializeField] private float throttleForce = 5f;
+        [SerializeField] private bool isPowered;
+        [SerializeField] private float baseThrottleForce = 9.81f;
+        [SerializeField] private float throttleForce = 6f;
         [SerializeField] private float velocityResponse = 6f;
         [SerializeField] private float angularResponse = 6f;
         [SerializeField] private float rotationalMultiplier = 20f; // for movement
+        [SerializeField] private float yawRate = 90f;
         [SerializeField] private float strafeRate = 1f;
         [SerializeField] HelperPlane xzPlane;
+        [SerializeField] private float maxTiltDegree = 30f;
         [SerializeField] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
-        [SerializeField] private bool isPowered;
         private float _currentPoweredThrottle;
 
         private Vector3 _movV = Vector3.zero;
-        private Vector3 _movVSmoothed = Vector3.zero;
         private Vector3 _currentUp;
         private Quaternion _rotQ = Quaternion.identity;
-        private Quaternion _rotQSmoothed = Quaternion.identity;
+        private float _yawInput;
+        private float _targetYaw;
 
         void Awake()
         {
@@ -170,42 +172,46 @@ namespace DroneMovement
                 isPowered ? baseThrottleForce : 0, 
                 fdt
             );
-
             
-            /* directly control the body
-            // compute body movement
-            _movVSmoothed = Vector3.Lerp(
-                _movVSmoothed,
-                transform.right * _movV.x +
-                Vector3.up * _movV.y +
-                transform.forward * _movV.z,
-                velocityResponse * fdt
-            );
-            // apply body movement
-            //#1#
-            rigidBody.MovePosition(
-                rigidBody.position + _movVSmoothed * fdt
-            );
-            /#1#
-            rigidBody.linearVelocity = _movVSmoothed;
-            //#1#
+            if (isPowered)
+            {
+                // lift
+                float upAccel = _currentPoweredThrottle + throttleForce * _movV.y;
+                rigidBody.AddForce(
+                    transform.up * upAccel,
+                    ForceMode.Acceleration
+                );
 
-            // compute body rotation
-            _rotQSmoothed = Quaternion.Slerp(
-                _rotQSmoothed,
-                _rotQ,
-                angularResponse * fdt
-            );
-            Quaternion deltaRotation = Quaternion.Slerp(
-                Quaternion.identity,
-                _rotQSmoothed,
-                fdt
-            );
-            // apply body rotation
-            rigidBody.MoveRotation(Quaternion.Normalize(
-                rigidBody.rotation * deltaRotation
-            ));
-            */
+                // yaw target (hold when stick returns to 0)
+                _targetYaw += _yawInput * yawRate * fdt;
+
+                // yaw target * pitch/roll target
+                Quaternion target =
+                    Quaternion.AngleAxis(_targetYaw, Vector3.up) * _rotQ;
+
+                // get torque toward target
+                Quaternion qError =
+                    target * Quaternion.Inverse(rigidBody.rotation);
+                qError.ToAngleAxis(
+                    out float errorAngleDeg, out Vector3 errorAxis
+                );
+                if (errorAngleDeg > 180f)
+                    errorAngleDeg -= 360f;
+                if (
+                    Mathf.Abs(errorAngleDeg) >= 1e-3f &&
+                    float.IsFinite(errorAxis.sqrMagnitude)
+                )
+                {
+                    Vector3 torqueTowardTarget =
+                        errorAxis.normalized *
+                        (Mathf.Deg2Rad * errorAngleDeg * angularResponse) -
+                        rigidBody.angularVelocity * rigidBody.angularDamping;
+                    rigidBody.AddTorque(
+                        torqueTowardTarget, 
+                        ForceMode.Acceleration
+                    );
+                }
+            }
             
             // compute wing rotations
             for (int i = 0; i < wingsCount; i++)
@@ -233,12 +239,7 @@ namespace DroneMovement
                     _wingsXzDistances[i] * fdt
                 );
 
-                wings[i].Rotate(
-                    Quaternion
-                        .Normalize(wings[i].localRotation * deltaWingRotation)
-                        .eulerAngles,
-                    Space.Self
-                );
+                wings[i].localRotation = deltaWingRotation;
             }
             /*/
             Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
@@ -251,37 +252,33 @@ namespace DroneMovement
         public void ActionLeft(Vector2 v)
         {
             if (!isPowered) return;
-            /*/ apply force directly to the body
-            _movV.y = throttleForce * v.y; // target local velocity
-            _rotQ = Quaternion.Euler(
-                0,
-                throttleForce * rotationalMultiplier * v.x,
-                0
-            ); // target angular velocity
-            /*/
-            MovementRotate(v.x);
-            MovementY(v.y);
-            //*/
+            
+            _movV.y = Mathf.Clamp(v.y, -1f, 1f);
+            _yawInput = Mathf.Clamp(v.x, -1f, 1f);
+
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float)WingDirAtOrder(i);
+                ChangeWingRotation(
+                    d,
+                    d * throttleForce * v.x,
+                    out _wingRotations[i]
+                );
+            }
         }
 
         public void ActionRight(Vector2 v)
         {
             if (!isPowered) return;
-            //*/ apply force directly to the body
-            xzPlane.Tilt(v);
-            _movV.x = throttleForce * v.x;
-            _movV.z = throttleForce * v.y;
             
-            //apply banking motion
-            _rotQ = Quaternion.Euler(
-                rotationalMultiplier * -v.y,
-                _rotQ.eulerAngles.y,
-                rotationalMultiplier * -v.x
-            );
-            /*/
             xzPlane.Tilt(v);
             MovementXZ();
-            //*/
+            
+            _rotQ = Quaternion.Euler(
+                maxTiltDegree * v.y,
+                0f,
+                maxTiltDegree * -v.x
+            );
         }
 
         /// <summary>
@@ -356,12 +353,10 @@ namespace DroneMovement
             for (int i = 0; i < wingsCount; i++)
             {
                 float d = (float) WingDirAtOrder(i);
-                ChangeWingRotationAndAddTorque(
-                    wings[i],
+                ChangeWingRotation(
                     d,
                     d * throttleForce * _wingsXzDistances[i],
-                    out _wingRotationsFromStrafe[i],
-                    rigidBody
+                    out _wingRotationsFromStrafe[i]
                 );
             }
         }
@@ -418,7 +413,7 @@ namespace DroneMovement
             );
             b.AddForceAtPosition(
                 Vector3.up * (_currentPoweredThrottle + f),
-                model.transform.position + w.position,
+                w.position,
                 ForceMode.Acceleration
             );
         }
@@ -427,15 +422,15 @@ namespace DroneMovement
             IList<Transform> wingPos, Transform XZ, IList<float> dist
         )
         {
-            Vector3 n = XZ.up.normalized;
-            float denom = n.y;
             Vector3 p0 = XZ.position;
+            Vector3 n = XZ.up;
+            float denom = Vector3.Dot(transform.up, n);
 
             for (int i = 0; i < wingPos.Count; i++)
             {
                 Vector3 wp = wingPos[i].position;
-                dist[i] = (Mathf.Abs(denom) < 1e-6f)
-                    ? float.PositiveInfinity
+                dist[i] = Mathf.Abs(denom) < 1e-6f
+                    ? 0f
                     : Vector3.Dot(p0 - wp, n) / denom;
 
                 dist[i] *= strafeRate;

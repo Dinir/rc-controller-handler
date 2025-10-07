@@ -172,8 +172,8 @@ Rigidbody:
   m_GameObject: {fileID: 6241325969939877603}
   serializedVersion: 5
   m_Mass: 5
-  m_LinearDamping: 0.04
-  m_AngularDamping: 0.04
+  m_LinearDamping: 1.2
+  m_AngularDamping: 1.2
   m_CenterOfMass: {x: 0, y: -0.45, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -216,15 +216,17 @@ MonoBehaviour:
   generalDeadzone: {x: 0.1, y: 0.1}
   rcControllerMaxValue: {x: 0.9, y: 0.9}
   generalMaxValue: {x: 1, y: 1}
-  baseThrottleForce: 0.5
-  throttleForce: 0.5
-  velocityResponse: 2
-  angularResponse: 2
+  isPowered: 0
+  baseThrottleForce: 9.81
+  throttleForce: 6
+  velocityResponse: 6
+  angularResponse: 6
   rotationalMultiplier: 20
+  yawRate: 90
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}
+  maxTiltDegree: 30
   wingRotationMultiplier: 0.7
-  isPowered: 0
 --- !u!114 &2657259198581272960
 MonoBehaviour:
   m_ObjectHideFlags: 0
