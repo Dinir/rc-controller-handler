@@ -40,8 +40,8 @@ namespace ControlHandler
                         value.y <= -_deadzone[1] ? value.y : 0
                 );
                 _left = new Vector2(
-                    Mathf.Clamp(value.x / _maxValue[0], -_maxValue[0], _maxValue[0]),
-                    Mathf.Clamp(value.y / _maxValue[1], -_maxValue[1], _maxValue[1])
+                    Mathf.Clamp(value.x / _maxValue[0], -1f, 1f),
+                    Mathf.Clamp(value.y / _maxValue[1], -1f, 1f)
                 );
             }
         }
@@ -59,8 +59,8 @@ namespace ControlHandler
                         value.y <= -_deadzone[3] ? value.y : 0
                 );
                 _right = new Vector2(
-                    Mathf.Clamp(value.x / _maxValue[2], -_maxValue[2], _maxValue[2]),
-                    Mathf.Clamp(value.y / _maxValue[3], -_maxValue[3], _maxValue[3])
+                    Mathf.Clamp(value.x / _maxValue[2], -1f, 1f),
+                    Mathf.Clamp(value.y / _maxValue[3], -1f, 1f)
                 );
             }
         }
@@ -72,13 +72,13 @@ namespace ControlHandler
                 value = value >= 0 ? 
                     value >= _deadzone[4] ? value : 0 : 
                     value <= -_deadzone[4] ? value : 0;
-                _aux = Mathf.Clamp(value / _maxValue[4], -_maxValue[4], _maxValue[4]);
+                _aux = Mathf.Clamp(value / _maxValue[4], -1f, 1f);
             }
         }
         public float Trigger
         {
             get => _trigger;
-            set { _trigger = Mathf.Clamp(value / _maxValue[5], _deadzone[5], _maxValue[5]); }
+            set => _trigger = Mathf.Clamp(value / _maxValue[5], 0, 1f);
         }
 
         public void SetDeadzoneLeft(Vector2 v) =>
