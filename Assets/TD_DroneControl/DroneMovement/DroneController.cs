@@ -36,7 +36,8 @@ namespace DroneMovement
         [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
 
         [Header("Proportional-Derivative Controller")] 
-        [Tooltip("Hz, How \"fast\" rotations feel.")] [SerializeField] [Min(.1f)] private float attitudeBandwidth = 3f;
+        [Tooltip("Hz, How \"fast\" rotations feel.")] 
+        [SerializeField] [Min(.1f)] private float attitudeBandwidth = 3f;
         [Tooltip(".7~1.0, How much it \"resists\" oscilation.")]
         [SerializeField] [Range(.2f, 2f)] private float attitudeDamping = .55f;
         private const float MaxNm = 1e6f;
