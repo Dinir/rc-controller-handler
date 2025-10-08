@@ -202,6 +202,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9eddd625d925df343b75d367e6990378, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DroneMovement.DroneController
+  isPowered: 0
+  autoHover: 1
+  baseThrottleForce: 49.05
+  appliedThrottleForce: 25
+  angularResponse: 6
+  attitudeBandwidth: 3
+  attitudeDamping: 0.55
+  rotationalMultiplier: 20
+  yawRate: 90
+  strafeRate: 1
+  xzPlane: {fileID: 1450627124457402256}
+  maxTiltDegree: 30
+  tiltCompensationMinCos: 0.35
+  wingRotationMultiplier: 0.7
   model: {fileID: 1405507041430199488}
   rigidBody: {fileID: 1821113632817852861}
   wingsCount: 6
@@ -216,17 +230,6 @@ MonoBehaviour:
   generalDeadzone: {x: 0.1, y: 0.1}
   rcControllerMaxValue: {x: 0.9, y: 0.9}
   generalMaxValue: {x: 1, y: 1}
-  isPowered: 0
-  baseThrottleForce: 9.81
-  throttleForce: 6
-  velocityResponse: 6
-  angularResponse: 6
-  rotationalMultiplier: 20
-  yawRate: 90
-  strafeRate: 1
-  xzPlane: {fileID: 1450627124457402256}
-  maxTiltDegree: 30
-  wingRotationMultiplier: 0.7
 --- !u!114 &2657259198581272960
 MonoBehaviour:
   m_ObjectHideFlags: 0
