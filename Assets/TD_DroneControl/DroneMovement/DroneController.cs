@@ -281,7 +281,7 @@ namespace DroneMovement
             /*/
             Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
             /*/
-            Debug.Log($"{wings[0].localRotation},{wings[1].localRotation},{wings[2].localRotation},{wings[3].localRotation},{wings[4].localRotation},{wings[5].localRotation}");
+            Debug.Log($"{wings[0].localRotation.y:F2}, {wings[1].localRotation.y:F2}, {wings[2].localRotation.y:F2}, {wings[3].localRotation.y:F2}, {wings[4].localRotation.y:F2}, {wings[5].localRotation.y:F2}");
             //*/
         }
 
