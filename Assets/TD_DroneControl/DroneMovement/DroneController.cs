@@ -9,9 +9,11 @@ namespace DroneMovement
     public enum WingDir { CCW = -1, CW = 1 }
     public enum WingPos { Front = 0, Middle = 1, Back = 2 }
      
+    [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(PlayerInput))]
     public class DroneController : MonoBehaviour
     {
+        private const int InspectorSpace = 14;
         internal FsSm600Handler Handler;
         internal GeneralInputHandler GeneralHandler;
         internal bool HandlerFound;
@@ -26,11 +28,42 @@ namespace DroneMovement
         private readonly float[] _wingsXzDistances = new float[6];
         private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
 
+        [Header("Configuration")]
+        [SerializeField] private bool isPowered;
+        [Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
+        [SerializeField] [Min(0)] private float baseThrottleForce = 49.05f;
+        [Tooltip("N (kg·m/s²)")]
+        [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
+
+        [Header("Physical Attribute")] 
+        [SerializeField] private float velocityResponse = 8f;
+        [Space(InspectorSpace)]
+        [Tooltip("N·m/rad")]
+        [SerializeField] [Min(0)] private float angularResponse = 8f;
+        [Tooltip("How \"fast\" rotations feel.")]
+        [SerializeField] [Min(0)] private float attitudeBandwidthHz = 3f;
+        [Tooltip(".7~1.; Raise to reduce wooble.")]
+        [SerializeField] [Min(0)] private float attitudeDamping = .8f;
+        [SerializeField] [Min(0)] private float rotationalMultiplier = 20f; // for movement
+        [Tooltip("deg/s")]
+        [SerializeField] [Min(0)] private float yawRate = 90f;
+        [Space(InspectorSpace)]
+        [SerializeField] [Min(0)] private float strafeRate = 1f;
+        [SerializeField] HelperPlane xzPlane;
+        [Tooltip("deg")]
+        [SerializeField] [Min(0)] private float maxTiltDegree = 30f;
+        [Tooltip("deg")]
+        [SerializeField] [Range(0, 1f)] private float tiltCompensationMinCos = .35f;
+        [Space(InspectorSpace)]
+        [SerializeField] [Min(0)] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
+        private float _currentPoweredThrottleForce;
+        private float _currentThrottleForce;
+
         [Header("Properties")] 
         [SerializeField] private GameObject model;
-
         [SerializeField] private Rigidbody rigidBody;
-        [SerializeField] private int wingsCount = 6;
+        [SerializeField] [Range(4, 6)] private int wingsCount = 6;
+        [Tooltip("Auto-generated using predefined names if left empty.")]
         [SerializeField] private Transform[] wings = new Transform[6];
 
         [Header("Controller")]
@@ -39,22 +72,9 @@ namespace DroneMovement
         [SerializeField] private Vector2 rcControllerMaxValue = new(.9f, .9f);
         [SerializeField] private Vector2 generalMaxValue = new(1f, 1f);
 
-        [Header("Movement")] 
-        [SerializeField] private bool isPowered;
-        [SerializeField] private float baseThrottleForce = 9.81f;
-        [SerializeField] private float throttleForce = 6f;
-        [SerializeField] private float velocityResponse = 6f;
-        [SerializeField] private float angularResponse = 6f;
-        [SerializeField] private float rotationalMultiplier = 20f; // for movement
-        [SerializeField] private float yawRate = 90f;
-        [SerializeField] private float strafeRate = 1f;
-        [SerializeField] HelperPlane xzPlane;
-        [SerializeField] private float maxTiltDegree = 30f;
-        [SerializeField] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
-        private float _currentPoweredThrottle;
-
         private Vector3 _movV = Vector3.zero;
         private Vector3 _currentUp;
+        private Vector3 _worldUp = -Physics.gravity.normalized;
         private Quaternion _rotQ = Quaternion.identity;
         private float _yawInput;
         private float _targetYaw;
@@ -66,6 +86,8 @@ namespace DroneMovement
             HandlerFound = Handler.Device != null;
             PrevAxes = new SextupleAxesManager();
             GeneralAxes = new SextupleAxesManager();
+
+            rigidBody = GetComponent<Rigidbody>();
             
             UpdateAxisRange();
 
@@ -177,6 +199,21 @@ namespace DroneMovement
             {
                 // lift
                 float upAccel = _currentPoweredThrottle + throttleForce * _movV.y;
+                
+                // tilt compensation to vertical component of thrust
+                float cosTilt = Mathf.Clamp(
+                    Vector3.Dot(transform.up, _worldUp),
+                    tiltCompensationMinCos,
+                    1f
+                );
+                float tiltCompensation = 1f / cosTilt;
+                
+                // vertical velocity damping
+                float velocityV = Vector3.Dot(rigidBody.linearVelocity, _worldUp);
+                float vertDampAccel = -velocityV * rigidBody.linearDamping;
+
+                upAccel = upAccel * tiltCompensation + vertDampAccel;
+                
                 rigidBody.AddForce(
                     transform.up * upAccel,
                     ForceMode.Acceleration
