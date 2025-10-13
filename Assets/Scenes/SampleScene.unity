@@ -1595,6 +1595,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1307830391679998797, guid: 10f6b9bee7554db4fb722c325f5d93ed, type: 3}
+      propertyPath: appliedThrottleForce
+      value: 12
+      objectReference: {fileID: 0}
     - target: {fileID: 6241325969939877603, guid: 10f6b9bee7554db4fb722c325f5d93ed, type: 3}
       propertyPath: m_Name
       value: Drone

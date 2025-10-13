@@ -26,7 +26,7 @@ namespace DroneMovement
         
         private Vector2 _inputLeft;
         private Vector2 _inputRight;
-
+        
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
         private readonly float[] _wingsXzDistances = new float[6];
         private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
@@ -69,13 +69,6 @@ namespace DroneMovement
 
         [Tooltip("N (kg·m/s²)")]
         [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
-        
-        [Header("Proportional-Derivative Controller")] 
-        [Tooltip("Hz, How \"fast\" rotations feel.")] 
-        [SerializeField] [Min(.1f)] private float attitudeBandwidth = 3f;
-        [Tooltip(".7~1.0, How much it \"resists\" oscilation.")]
-        [SerializeField] [Range(.2f, 2f)] private float attitudeDamping = .55f;
-        private const float MaxNm = 1e6f;
         
         [Header("Physical Property")]
         [Tooltip("deg/s")]
@@ -222,21 +215,86 @@ namespace DroneMovement
         void FixedUpdate()
         {
             float fdt = Time.fixedDeltaTime;
+            float alpha = 1f - Mathf.Exp(
+                -Mathf.Max(1e-3f, commandSensitivity) * fdt
+            );
             _worldUp = -Physics.gravity.normalized;
             float g = Physics.gravity.magnitude;
             
             if (isPowered)
             {
+                _currentPoweredThrottleForce = baseThrottleForce;
                 CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             }
             else
             {
-                Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
+                _currentPoweredThrottleForce = 0f;
+                Array.Fill(_wingsXzDistances, 0f, 0, wingsCount);
             }
 
+            // stick commands
+            Vector4 stickCmd = new(
+                _inputRight.x, // roll
+                _inputRight.y, // pitch 
+                _inputLeft.x, // yaw
+                _inputLeft.y // lift
+            );
             
-            
-            
+            // hover force
+            float tiltCos = Mathf.Clamp(
+                Vector3.Dot(transform.up, _worldUp), tiltCompensationMinCos, 1f
+            );
+            float hoverForcePerRotor = autoHover ? 
+                rigidBody.mass * g / Mathf.Max(1, wingsCount) / tiltCos : 
+                baseThrottleForce;
+
+            for (int i = 0; i < wingsCount; i++)
+            {
+                // signs
+                float rollS = RollSign(i); // -left / +right
+                int pitchS = (int) WingPosAtOrder(i); // -front / 0 / +back
+                int yawS = (int) WingDirAtOrder(i); // -ccw / +cw
+                
+                // mixing
+                float liftT = liftMultiplier * stickCmd.w;
+                float yawT = yawMix * stickCmd.z * yawS;
+                float rollT = rollMix * stickCmd.x * rollS;
+                float pitchT = pitchMix * stickCmd.y * pitchS;
+                float strafeT = _wingsXzDistances[i];
+                
+                float targetForce =
+                    hoverForcePerRotor +
+                    throttleForce * (liftT + yawT + rollT + pitchT + strafeT);
+                
+                // power gating + clamp
+                targetForce = Mathf.Clamp(
+                    targetForce * (isPowered ? 1f : 0f), 0f, maxThrustPerRotor 
+                );
+
+                _rotorTarget[i] = targetForce;
+                _rotorTransition[i] = Mathf.Lerp(
+                    _rotorTransition[i], _rotorTarget[i], alpha
+                );
+                
+                // thrust
+                rigidBody.AddForceAtPosition(
+                    transform.up * _rotorTransition[i] * torqueMultiplier,
+                    wings[i].position,
+                    ForceMode.Force
+                );
+                
+                // reaction yaw torque
+                float yawTorque = yawTorquePerThrust * _rotorTransition[i] * yawS;
+                rigidBody.AddRelativeTorque(Vector3.down * yawTorque, ForceMode.Force);
+                
+                // base spin * strafe wooble
+                ChangeWingRotation(
+                    (float) yawS,
+                    _rotorTransition[i],
+                    out _wingRotations[i]
+                );
+                wings[i].localRotation = _wingRotations[i] * _wingRotationsFromStrafe[i];
+            }
         }
 
         // action for the attached game object
@@ -254,7 +312,6 @@ namespace DroneMovement
             _inputRight = v;
             
             xzPlane.Tilt(v);
-            MovementXZ();
         }
 
         /// <summary>
@@ -299,46 +356,10 @@ namespace DroneMovement
         private WingPos WingPosAtOrder(int i) => 
             (WingPos) Mathf.Ceil(1 - (i >> 1) * (4 - (wingsCount >> 1)));
 
-        // drone animation (complex)
-        private void MovementRotate(float v)
+        private float RollSign(int i)
         {
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = (float) WingDirAtOrder(i);
-                ChangeWingRotationAndAddTorque(
-                    wings[i], 
-                    d, 
-                    d * appliedThrottleForce * v, 
-                    out _wingRotations[i], 
-                    rigidBody
-                );
-            }
-        }
-        private void MovementY(float v)
-        {
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = 1f;
-                ChangeWingRotationAndAddTorque(
-                    wings[i],
-                    d,
-                    d * appliedThrottleForce * v, 
-                    out _wingRotations[i], 
-                    rigidBody
-                );
-            }
-        }
-        private void MovementXZ()
-        {
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = (float) WingDirAtOrder(i);
-                ChangeWingRotation(
-                    d,
-                    d * appliedThrottleForce * _wingsXzDistances[i],
-                    out _wingRotationsFromStrafe[i]
-                );
-            }
+            Vector3 local = transform.InverseTransformPoint(wings[i].position);
+            return Mathf.Abs(local.x) < 1e-3f ? 0f : Mathf.Sign(local.x);
         }
 
         /*
