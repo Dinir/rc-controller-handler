@@ -204,21 +204,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DroneMovement.DroneController
   isPowered: 0
   autoHover: 1
-  baseThrottleForce: 0.68125
-  throttleForce: 10
-  maxThrustPerRotor: 12
-  yawTorquePerThrust: 0.75
-  commandSensitivity: 12
-  yawMix: 0.3
-  rollMix: 0.45
-  pitchMix: 0.45
-  torqueMultiplier: 1
-  liftMultiplier: 0.5
+  baseThrottleForce: 49.05
+  appliedThrottleForce: 25
+  attitudeBandwidth: 3
+  attitudeDamping: 0.55
+  rotationalMultiplier: 20
+  yawRate: 45
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}
   maxTiltDegree: 30
   tiltCompensationMinCos: 0.35
-  wingRotationMultiplier: 45
+  wingRotationMultiplier: 0.7
   model: {fileID: 1405507041430199488}
   rigidBody: {fileID: 1821113632817852861}
   wingsCount: 6
