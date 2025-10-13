@@ -36,14 +36,13 @@ namespace DroneMovement
         [SerializeField] private bool autoHover = true;
         [Tooltip("N (kg·m/s²), calculates automatically when Auto Hover is on.")]
         [SerializeField] [Min(0)] private float baseThrottleForce = .68125f;
-        [SerializeField] private float throttleForce = 1f;
-        [SerializeField] private float rotationalMultiplier = 1f;
+        [SerializeField] [Min(0)] private float throttleForce = 10f;
         
         [Header("Rotors")]
         [Tooltip("N")]
-        [SerializeField] private float maxThrustPerRotor = 12f;
+        [SerializeField] [Min(0)] private float maxThrustPerRotor = 12f;
         [Tooltip("torque/N, reaction per thrust")]
-        [SerializeField] private float yawTorquePerThrust = .02f;
+        [SerializeField] [Min(0)] private float yawTorquePerThrust = .075f;
         [Space(InspectorSpace/2)]
         [Tooltip("s^-1, how fast rotor follows commands")]
         [SerializeField] private float commandSensitivity = 12f;
@@ -56,9 +55,9 @@ namespace DroneMovement
         [SerializeField] private float pitchMix = .45f;
         [Space(InspectorSpace/2)]
         [Tooltip("scales torque command")]
-        [SerializeField] private float torqueMultiplier = 1f;
+        [SerializeField] [Min(0)] private float torqueMultiplier = 1f;
         [Tooltip("scales lift command")]
-        [SerializeField] private float liftMultiplier = .5f;
+        [SerializeField] [Min(0)] private float liftMultiplier = .5f;
 
         private float[] _rotorCmd;
         private float[] _rotorTarget;
@@ -66,14 +65,8 @@ namespace DroneMovement
         
         private Vector3 _worldUp;
         private Vector3 _currentUp;
-
-        [Tooltip("N (kg·m/s²)")]
-        [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
         
         [Header("Physical Property")]
-        [Tooltip("deg/s")]
-        [SerializeField] [Min(0)] private float yawRate = 90f;
-        [Space(InspectorSpace)]
         [SerializeField] [Min(0)] private float strafeRate = 1f;
         [Tooltip("An invisible plane sitting on the wings attitude in drone game object, tilts as xz movement input is received.")]
         [SerializeField] HelperPlane xzPlane;
@@ -82,6 +75,7 @@ namespace DroneMovement
         [Tooltip("deg")]
         [SerializeField] [Range(0, 1f)] private float tiltCompensationMinCos = .35f;
         [Space(InspectorSpace)]
+        [Tooltip("deg/sec/N")]
         [SerializeField] [Min(0)] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
         private float _currentPoweredThrottleForce;
         private float _currentThrottleForce;
@@ -118,7 +112,7 @@ namespace DroneMovement
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
 
             // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
-            isPowered = false;
+            isPowered = true;
             
             if (wings[0] == null)
             {
@@ -224,6 +218,7 @@ namespace DroneMovement
             if (isPowered)
             {
                 _currentPoweredThrottleForce = baseThrottleForce;
+                xzPlane.Tilt(_inputRight);
                 CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             }
             else
@@ -240,6 +235,13 @@ namespace DroneMovement
                 _inputLeft.y // lift
             );
             
+            // limit roll/pitch before the body tilt ceiling
+            Vector2 limitedRP = LimitHorizontalByTilt(new Vector2(
+                stickCmd.x, stickCmd.y
+            ));
+            stickCmd.x = limitedRP.x;
+            stickCmd.y = limitedRP.y;
+            
             // hover force
             float tiltCos = Mathf.Clamp(
                 Vector3.Dot(transform.up, _worldUp), tiltCompensationMinCos, 1f
@@ -247,6 +249,8 @@ namespace DroneMovement
             float hoverForcePerRotor = autoHover ? 
                 rigidBody.mass * g / Mathf.Max(1, wingsCount) / tiltCos : 
                 baseThrottleForce;
+            
+            ApplyAutoLevel(g);
 
             for (int i = 0; i < wingsCount; i++)
             {
@@ -278,22 +282,26 @@ namespace DroneMovement
                 
                 // thrust
                 rigidBody.AddForceAtPosition(
-                    transform.up * _rotorTransition[i] * torqueMultiplier,
+                    transform.up * _rotorTransition[i],
                     wings[i].position,
                     ForceMode.Force
                 );
                 
                 // reaction yaw torque
-                float yawTorque = yawTorquePerThrust * _rotorTransition[i] * yawS;
-                rigidBody.AddRelativeTorque(Vector3.down * yawTorque, ForceMode.Force);
+                float yawTorque = yawTorquePerThrust * _rotorTransition[i] * yawS * torqueMultiplier;
+                rigidBody.AddRelativeTorque(
+                    Vector3.up * yawTorque, ForceMode.Force
+                );
                 
                 // base spin * strafe wooble
-                ChangeWingRotation(
-                    (float) yawS,
+                GetDeltaWingRotation(
+                    yawS,
                     _rotorTransition[i],
-                    out _wingRotations[i]
+                    out Quaternion deltaSpin
                 );
-                wings[i].localRotation = _wingRotations[i] * _wingRotationsFromStrafe[i];
+                _wingRotations[i] *= deltaSpin;
+                wings[i].localRotation = 
+                    _wingRotations[i] * _wingRotationsFromStrafe[i];
             }
         }
 
@@ -310,8 +318,6 @@ namespace DroneMovement
             if (!isPowered) return;
 
             _inputRight = v;
-            
-            xzPlane.Tilt(v);
         }
 
         /// <summary>
@@ -371,26 +377,25 @@ namespace DroneMovement
         // drone animation (unit)
 
         /// <summary>
-        /// Change rotation of a wing in `d`irection by `f`orce to its `q`uaternion variable.
+        /// Get the next small rotation of a wing in `d`irection by `f`orce to its `q`uaternion variable.
         /// This is purely for cosmetic purposes.
         /// </summary>
         /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
         /// <param name="f">Amount of the force to apply.</param>
         /// <param name="q">Variable to store the rotation of the wing.</param>
-        private void ChangeWingRotation(
+        private void GetDeltaWingRotation(
             float d,
             float f,
             out Quaternion q
         )
         {
-            q = Quaternion.Euler(
-                0, 
-                d * wingRotationMultiplier * (_currentPoweredThrottleForce + f),
-                0
-            );
+            float degPerSec = 
+                wingRotationMultiplier * (_currentPoweredThrottleForce + f);
+            float deltaDeg = d * degPerSec * Time.fixedDeltaTime;
+            q = Quaternion.Euler(0, deltaDeg, 0);
         }
         /// <summary>
-        /// Change rotation of a `w`ing in `d`irection by `f`orce to `q`uaternion variable,
+        /// Get the next small rotation of a `w`ing in `d`irection by `f`orce to `q`uaternion variable,
         /// and apply torque and force to the `b`ody the wing is attached to.
         /// </summary>
         /// <param name="w">Transform of the wing to rotate.</param>
@@ -398,7 +403,7 @@ namespace DroneMovement
         /// <param name="f">Amount of the force to apply.</param>
         /// <param name="q">Variable to store the rotation of the wing.</param>
         /// <param name="b">Rigidbody of the body the wing is attached to.</param>
-        private void ChangeWingRotationAndAddTorque(
+        private void GetDeltaWingRotationAndAddTorque(
             Transform w,
             float d,
             float f,
@@ -406,7 +411,7 @@ namespace DroneMovement
             Rigidbody b
         )
         {
-            ChangeWingRotation(d, f, out q);
+            GetDeltaWingRotation(d, f, out q);
             
             b.AddRelativeTorque(
                 -d * Vector3.up * (_currentPoweredThrottleForce + f),
@@ -443,6 +448,86 @@ namespace DroneMovement
                 );
             }
         }
+        
+        /// <summary>
+        /// Keeps the drone level in roll/pitch when there's no horizontal input.
+        /// </summary>
+        /// <param name="g">gravitational force</param>
+        private void ApplyAutoLevel(float g)
+        {
+            if (!autoHover || !isPowered) return;
+
+            // How much the player is actively tilting (right stick)
+            float userTilt = Mathf.Clamp01(new Vector2(_inputRight.x, _inputRight.y).magnitude);
+            float levelScale = 1f - userTilt; // stronger leveling when the stick is released
+            if (levelScale <= 1e-4f) return;
+
+            // Tilt axis to bring transform.up -> world up
+            Vector3 tiltAxis = Vector3.Cross(transform.up, _worldUp);
+            float sinAngle = tiltAxis.magnitude;
+            if (sinAngle < 1e-4f) return;
+
+            Vector3 axis = tiltAxis / sinAngle;
+            float angleErr = Mathf.Asin(Mathf.Clamp(sinAngle, 0f, 1f)); // radians
+
+            // Gain from existing knobs (no new fields)
+            float kp = torqueMultiplier * (rigidBody.mass * g) * 0.5f;
+            float kd = torqueMultiplier * commandSensitivity * 0.25f;
+
+            // Proportional correction (only roll/pitch)
+            Vector3 corrective = axis * (angleErr * kp) * levelScale;
+
+            // Dampen roll/pitch angular velocity (ignore yaw)
+            Vector3 ang = rigidBody.angularVelocity;
+            Vector3 angNoYaw = ang - Vector3.Project(ang, _worldUp);
+            Vector3 damping = -kd * angNoYaw;
+
+            rigidBody.AddTorque(corrective + damping, ForceMode.Force);
+        }
+
+        
+        /// <summary>
+        /// Scale horizontal (roll/pitch) input so we never push past the body tilt ceiling.
+        /// </summary>
+        /// <param name="cmdRP"></param>
+        /// <returns></returns>
+        private Vector2 LimitHorizontalByTilt(Vector2 cmdRP)
+        {
+            // Current body tilt
+            float cosUp = Mathf.Clamp(Vector3.Dot(transform.up, _worldUp), -1f, 1f);
+            float tiltRad = Mathf.Acos(cosUp);
+            float maxRad  = Mathf.Max(1e-4f, maxTiltDegree * Mathf.Deg2Rad);
+
+            // Below the ceiling? No gating.
+            if (tiltRad < maxRad) return cmdRP;
+
+            // Axis that would LEVEL the craft (rotate transform.up -> _worldUp)
+            Vector3 axis = Vector3.Cross(transform.up, _worldUp);
+            float m = axis.magnitude;
+            if (m < 1e-4f) return cmdRP;
+            axis /= m;
+
+            // In roll/pitch space: direction that would INCREASE tilt (opposite of leveling axis)
+            Vector2 incDirRP = new Vector2(
+                Vector3.Dot(-axis, transform.forward), // roll(+)
+                Vector3.Dot(-axis, transform.right)    // pitch(+)
+            );
+            float incMag = incDirRP.magnitude;
+            if (incMag < 1e-4f) return cmdRP;
+
+            // If the stick is pushing in the "increase tilt" direction, fade it out.
+            Vector2 incN = incDirRP / incMag;
+            float cmdMag = cmdRP.magnitude;
+            if (cmdMag < 1e-4f) return cmdRP;
+
+            float alignment = Vector2.Dot(cmdRP / cmdMag, incN); // [-1..1]
+            if (alignment <= 0f) return cmdRP; // trying to level → allow fully
+
+            // Fully aligned with "increase tilt" → 0, orthogonal → 1
+            float scale = 1f - alignment;
+            return cmdRP * scale;
+        }
+
 
         // event handling for generic controllers (gamepads and keyboards + mouses)
         public void OnLeft(InputValue v)

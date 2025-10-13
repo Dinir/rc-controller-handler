@@ -285,9 +285,9 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": false
                 },
                 {
-                    ""name"": ""One Modifier"",
-                    ""id"": ""0930a7c1-1020-4a09-af68-a3fe3718ab37"",
-                    ""path"": ""OneModifier"",
+                    ""name"": ""2D Vector"",
+                    ""id"": ""3580163e-ae21-4be2-b32a-1843831e9d65"",
+                    ""path"": ""2DVector(mode=2)"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -296,8 +296,30 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": false
                 },
                 {
-                    ""name"": ""Binding"",
-                    ""id"": ""2b116775-a849-4737-a390-fa50f7af9c94"",
+                    ""name"": ""up"",
+                    ""id"": ""4397e38b-d032-4836-bc62-0690f9f97b20"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/rz"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Right"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""down"",
+                    ""id"": ""d568b6d2-895e-4e35-b59f-c2035f6b7d2a"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/rz"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Right"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""left"",
+                    ""id"": ""b9124f77-9df0-4571-9632-c139d821cb7e"",
                     ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/z"",
                     ""interactions"": """",
                     ""processors"": """",
@@ -307,9 +329,9 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": true
                 },
                 {
-                    ""name"": ""Binding"",
-                    ""id"": ""5287a2f6-7521-41c6-9c77-76baee250991"",
-                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/rz"",
+                    ""name"": ""right"",
+                    ""id"": ""1bd684b6-3026-4c1d-965d-1a6ab2956b4b"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/z"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Gaming Peripherals"",
