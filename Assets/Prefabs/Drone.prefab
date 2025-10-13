@@ -206,11 +206,10 @@ MonoBehaviour:
   autoHover: 1
   baseThrottleForce: 49.05
   appliedThrottleForce: 25
-  angularResponse: 6
   attitudeBandwidth: 3
   attitudeDamping: 0.55
   rotationalMultiplier: 20
-  yawRate: 90
+  yawRate: 45
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}
   maxTiltDegree: 30
