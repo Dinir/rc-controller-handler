@@ -198,6 +198,17 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
+                    ""id"": ""f4faa22c-d23d-4529-8a48-af421ff8ad7b"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/stick"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Left"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
                     ""id"": ""0e438a7a-2d9e-40f9-bd4c-0efafa8f2042"",
                     ""path"": ""<Gamepad>/rightStick"",
                     ""interactions"": """",
@@ -274,6 +285,39 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": false
                 },
                 {
+                    ""name"": ""One Modifier"",
+                    ""id"": ""0930a7c1-1020-4a09-af68-a3fe3718ab37"",
+                    ""path"": ""OneModifier"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Right"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""Binding"",
+                    ""id"": ""2b116775-a849-4737-a390-fa50f7af9c94"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/z"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Right"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""Binding"",
+                    ""id"": ""5287a2f6-7521-41c6-9c77-76baee250991"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/rz"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Right"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
                     ""name"": """",
                     ""id"": ""0ef768db-f8bf-4695-9e78-8027cdcba785"",
                     ""path"": ""<Gamepad>/leftTrigger"",
@@ -296,6 +340,28 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": false
                 },
                 {
+                    ""name"": ""One Modifier"",
+                    ""id"": ""426f3418-fda0-4773-a552-7de0d871ff4b"",
+                    ""path"": ""OneModifier"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Aux"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""binding"",
+                    ""id"": ""cd01b2b4-d818-4f5d-82ca-72cea1daf96e"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/button9"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Aux"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
                     ""name"": """",
                     ""id"": ""97946101-5b75-46a9-a039-5280977b82ce"",
                     ""path"": ""<Gamepad>/rightTrigger"",
@@ -316,6 +382,28 @@ public partial class @Drone_Actions: IInputActionCollection2, IDisposable
                     ""action"": ""Trigger"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""One Modifier"",
+                    ""id"": ""03a4b770-a6ea-4421-b98e-5558eeb58afb"",
+                    ""path"": ""OneModifier"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Trigger"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""binding"",
+                    ""id"": ""d396ed2a-3bf3-45b1-a956-55ab1bf14b05"",
+                    ""path"": ""<HID::szmy-power Ltd.  Bluetooth Wireless Controller   >/button10"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Gaming Peripherals"",
+                    ""action"": ""Trigger"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         }
