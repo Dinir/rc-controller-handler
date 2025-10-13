@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace DroneMovement
 {
     public enum WingDir { CCW = -1, CW = 1 }
-    public enum WingPos { Front = 0, Middle = 1, Back = 2 }
+    public enum WingPos { Front = 1, Middle = 0, Back = -1 }
      
     [RequireComponent(typeof(Rigidbody), typeof(PlayerInput))]
     public class DroneController : MonoBehaviour
@@ -278,24 +278,26 @@ namespace DroneMovement
          * 0   1   2   3   4   5
          * F   F   M   M   B   B
          * CW  CCW CCW CW  CW  CCW
-         * 0   0   1   1   2   2
+         * 1   1   0   0   -1  -1
          * 1   -1  -1  1   1   -1
          *
-         * 2 * Pos + Dir
+         * Mathf.Ceil(1 - i / 2)
          * i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW
          *
          * Case 4:
          * 0   1   2   3
          * F   F   B   B
          * CW  CCW CCW  CW
-         * 0   0   2   2
+         * 1   1   -1  -1
          * 1   -1  -1  1
+         *
+         * Mathf.Ceil(1 - Mathf.Floor(i / 2) * 2)
          */
         
         private WingDir WingDirAtOrder(int i) => 
             i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW;
         private WingPos WingPosAtOrder(int i) => 
-            (WingPos) (i / 2 * (4 - wingsCount / 2));
+            (WingPos) Mathf.Ceil(1 - (i >> 1) * (4 - (wingsCount >> 1)));
 
         // drone animation (complex)
         private void MovementRotate(float v)
