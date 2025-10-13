@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using ControlHandler;
 using UnityEngine;
 using UnityEngine.InputSystem;
-// ReSharper disable PossibleLossOfFraction
 
 namespace DroneMovement
 {
@@ -14,18 +13,15 @@ namespace DroneMovement
     public class DroneController : MonoBehaviour
     {
         private const int InspectorSpace = 14;
-        private FsSm600Handler _handler;
-        private GeneralInputHandler _generalHandler;
-        private bool _handlerFound;
-        private float _handlerPollTime;
-        private readonly float _handlerPollTimer = 3f;
-        private SextupleAxesManager _prevAxes;
-        private SextupleAxesManager _generalAxes;
-        private bool _triggerToggle; // from OnTrigger
-        private float _knobMix; // from OnAux
-        
-        private Vector2 _inputLeft;
-        private Vector2 _inputRight;
+        internal FsSm600Handler Handler;
+        internal GeneralInputHandler GeneralHandler;
+        internal bool HandlerFound;
+        internal float HandlerPollTime;
+        internal readonly float HandlerPollTimer = 3f;
+        internal SextupleAxesManager PrevAxes;
+        internal SextupleAxesManager GeneralAxes;
+        internal bool TriggerToggle; // from OnTrigger
+        internal float KnobMix; // from OnAux
 
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
         private readonly float[] _wingsXzDistances = new float[6];
@@ -34,50 +30,20 @@ namespace DroneMovement
         [Header("Configuration")]
         [SerializeField] private bool isPowered;
         [SerializeField] private bool autoHover = true;
-        [Tooltip("N (kg·m/s²), calculates automatically when Auto Hover is on.")]
-        [SerializeField] [Min(0)] private float baseThrottleForce = .68125f;
-        [SerializeField] private float throttleForce = 1f;
-        [SerializeField] private float rotationalMultiplier = 1f;
-        
-        [Header("Rotors")]
-        [Tooltip("N")]
-        [SerializeField] private float maxThrustPerRotor = 12f;
-        [Tooltip("torque/N, reaction per thrust")]
-        [SerializeField] private float yawTorquePerThrust = .02f;
-        [Space(InspectorSpace/2)]
-        [Tooltip("s^-1, how fast rotor follows commands")]
-        [SerializeField] private float commandSensitivity = 12f;
-        [Space(InspectorSpace/2)]
-        [Tooltip("per-rotor delta from yaw command")]
-        [SerializeField] private float yawMix = .30f;
-        [Tooltip("per-rotor delta from roll command")]
-        [SerializeField] private float rollMix = .45f;
-        [Tooltip("per-rotor delta from pitch command")]
-        [SerializeField] private float pitchMix = .45f;
-        [Space(InspectorSpace/2)]
-        [Tooltip("scales torque command")]
-        [SerializeField] private float torqueMultiplier = 1f;
-        [Tooltip("scales lift command")]
-        [SerializeField] private float liftMultiplier = .5f;
-
-        private float[] _rotorCmd;
-        private float[] _rotorTarget;
-        private float[] _rotorTransition;
-        
-        private Vector3 _worldUp;
-        private Vector3 _currentUp;
-
+        [Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
+        [SerializeField] [Min(0)] private float baseThrottleForce = 49.05f;
         [Tooltip("N (kg·m/s²)")]
         [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
-        
+
         [Header("Proportional-Derivative Controller")] 
         [Tooltip("Hz, How \"fast\" rotations feel.")] 
         [SerializeField] [Min(.1f)] private float attitudeBandwidth = 3f;
         [Tooltip(".7~1.0, How much it \"resists\" oscilation.")]
         [SerializeField] [Range(.2f, 2f)] private float attitudeDamping = .55f;
         private const float MaxNm = 1e6f;
-        
+
         [Header("Physical Property")]
+        [SerializeField] [Min(0)] private float rotationalMultiplier = 20f; // for movement
         [Tooltip("deg/s")]
         [SerializeField] [Min(0)] private float yawRate = 90f;
         [Space(InspectorSpace)]
@@ -110,13 +76,20 @@ namespace DroneMovement
         [SerializeField] private Vector2 generalMaxValue = 
             new(1f, 1f);
 
+        private Vector3 _movV = Vector3.zero;
+        private Vector3 _currentUp;
+        private Vector3 _worldUp;
+        private Quaternion _rotQ = Quaternion.identity;
+        private float _yawInput;
+        private float _targetYaw;
+
         void Awake()
         {
-            _handler = new FsSm600Handler();
-            _generalHandler = new GeneralInputHandler();
-            _handlerFound = _handler.Device != null;
-            _prevAxes = new SextupleAxesManager();
-            _generalAxes = new SextupleAxesManager();
+            Handler = new FsSm600Handler();
+            GeneralHandler = new GeneralInputHandler();
+            HandlerFound = Handler.Device != null;
+            PrevAxes = new SextupleAxesManager();
+            GeneralAxes = new SextupleAxesManager();
 
             rigidBody = GetComponent<Rigidbody>();
             
@@ -160,59 +133,55 @@ namespace DroneMovement
             Array.Fill(_wingRotations, Quaternion.identity, 0, wings.Length);
             Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
             Array.Fill(_wingRotationsFromStrafe, Quaternion.identity, 0, wings.Length);
-            
-            _rotorCmd = new float[wingsCount];
-            _rotorTarget = new float[wingsCount];
-            _rotorTransition = new float[wingsCount];
         }
 
         public void UpdateAxisRange()
         {
-            _handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
-            _handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
-            _prevAxes.SetDeadzoneLeft(generalDeadzone);
-            _prevAxes.SetDeadzoneRight(generalDeadzone);
-            _generalAxes.SetDeadzoneLeft(generalDeadzone);
-            _generalAxes.SetDeadzoneRight(generalDeadzone);
+            Handler.Axes.SetDeadzoneLeft(rcControllerDeadzone);
+            Handler.Axes.SetDeadzoneRight(rcControllerDeadzone);
+            PrevAxes.SetDeadzoneLeft(generalDeadzone);
+            PrevAxes.SetDeadzoneRight(generalDeadzone);
+            GeneralAxes.SetDeadzoneLeft(generalDeadzone);
+            GeneralAxes.SetDeadzoneRight(generalDeadzone);
             
-            _handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
-            _handler.Axes.SetMaxValueRight(rcControllerMaxValue);
-            _prevAxes.SetMaxValueLeft(generalMaxValue);
-            _prevAxes.SetMaxValueRight(generalMaxValue);
-            _generalAxes.SetMaxValueLeft(generalMaxValue);
-            _generalAxes.SetMaxValueRight(generalMaxValue);
+            Handler.Axes.SetMaxValueLeft(rcControllerMaxValue);
+            Handler.Axes.SetMaxValueRight(rcControllerMaxValue);
+            PrevAxes.SetMaxValueLeft(generalMaxValue);
+            PrevAxes.SetMaxValueRight(generalMaxValue);
+            GeneralAxes.SetMaxValueLeft(generalMaxValue);
+            GeneralAxes.SetMaxValueRight(generalMaxValue);
         }
 
         void Update()
         {
             // for RC Controller
-            if (_handlerFound)
+            if (HandlerFound)
             {
-                _handlerFound = _handler.Poll();
-                if (!_handlerFound) return;
+                HandlerFound = Handler.Poll();
+                if (!HandlerFound) return;
                 
-                _handler.SendMessages(gameObject, _handler.Activeness);
+                Handler.SendMessages(gameObject, Handler.Activeness);
                 // this variable made for gamepad should obey when there's an rc controller
-                _triggerToggle = Mathf.Approximately(_handler.Axes.Trigger, 1f);
+                TriggerToggle = Mathf.Approximately(Handler.Axes.Trigger, 1f);
             }
             else
             {
-                _handlerPollTime += Time.deltaTime;
-                if (_handlerPollTime >= _handlerPollTimer)
+                HandlerPollTime += Time.deltaTime;
+                if (HandlerPollTime >= HandlerPollTimer)
                 {
-                    _handlerPollTime = 0;
-                    _handler.TryToConnect(
+                    HandlerPollTime = 0;
+                    Handler.TryToConnect(
                         FsSm600Handler.Names, FsSm600Handler.ControlNames
                     );
-                    _handlerFound = _handler.Device != null;
+                    HandlerFound = Handler.Device != null;
                 }
                 // when there's no rc controller, the variable simulates a toggle switch
                 if (
-                    Mathf.Approximately(_generalAxes.Trigger, 1f) &&
-                    !Mathf.Approximately(_prevAxes.Trigger, 1f)
+                    Mathf.Approximately(GeneralAxes.Trigger, 1f) &&
+                    !Mathf.Approximately(PrevAxes.Trigger, 1f)
                 )
                 {
-                    _triggerToggle = !_triggerToggle;
+                    TriggerToggle = !TriggerToggle;
                 }
             }
             
@@ -223,38 +192,218 @@ namespace DroneMovement
         {
             float fdt = Time.fixedDeltaTime;
             _worldUp = -Physics.gravity.normalized;
-            float g = Physics.gravity.magnitude;
+            baseThrottleForce = autoHover ? 
+                rigidBody.mass * Physics.gravity.magnitude :
+                baseThrottleForce;
+            
+            // update powered state
+            _currentPoweredThrottleForce = Mathf.Lerp(
+                _currentPoweredThrottleForce, 
+                isPowered ? baseThrottleForce : 0, 
+                fdt
+            );
             
             if (isPowered)
             {
-                CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
-            }
-            else
-            {
-                Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
-            }
+                // --- LIFT ---
+                _currentThrottleForce = 
+                    _currentPoweredThrottleForce + 
+                    appliedThrottleForce * _movV.y;
+                
+                // tilt compensation to vertical component of thrust
+                float cosTilt = Mathf.Clamp(
+                    Vector3.Dot(transform.up, _worldUp),
+                    tiltCompensationMinCos,
+                    1f
+                );
+                float tiltCompensation = 1f / cosTilt;
 
+                _currentThrottleForce *= tiltCompensation;
+                
+                // vertical velocity damping
+                float velocityV = 
+                    Vector3.Dot(rigidBody.linearVelocity, _worldUp);
+                float vertDampForce = 
+                    -velocityV * rigidBody.linearDamping * rigidBody.mass;
+                
+                // apply lift force
+                rigidBody.AddForce(
+                    transform.up * _currentThrottleForce +
+                    _worldUp * vertDampForce,
+                    ForceMode.Force
+                );
+
+                // --- attitude ---
+                // yaw target (hold when stick returns to 0)
+                _targetYaw += _yawInput * yawRate * fdt;
+
+                // yaw target * pitch/roll target
+                Quaternion targetOrientation =
+                    Quaternion.AngleAxis(_targetYaw, Vector3.up) * _rotQ;
+
+                // get torque toward target
+                Quaternion qError =
+                    Quaternion.Inverse(rigidBody.rotation) * targetOrientation;
+                qError.ToAngleAxis(
+                    out float errorDeg, out Vector3 errorAxis
+                );
+                if (errorDeg > 180f)
+                    errorDeg -= 360f;
+                if (
+                    Mathf.Abs(errorDeg) >= 1e-3f &&
+                    float.IsFinite(errorAxis.sqrMagnitude)
+                )
+                {
+                    /* - PD = Proportional-Derivative Controller
+                     * Proportional term
+                     *   - "spring" pulling towards the target angle
+                     *   - larger error -> more torque
+                     *   => _axis.normalized * (errorRad * kp)
+                     * Derivative term
+                     *   - "damper" resisting angular velocity
+                     *   - slows down motion before overshoot
+                     *   => -angularVelocity * kd
+                     * 
+                     * torque = Kp * rotation_error - Kd * angularVelocity
+                     * 
+                     * P makes it rotate towards, D stops it.
+                     * Too low D gets it wobble, too high sluggy.
+                     * 
+                     * - current angular velocity in body frame
+                     * Vector3 omegaBody = transform.InverseTransformDirection(
+                     *     rigidBody.angularVelocity
+                     * );
+                     * 
+                     * - Body -> principal inertia frame
+                     * Quaternion qI = rigidBody.inertiaTensorRotation;
+                     * Vector3 omegaI = Quaternion.Inverse(qI) * omegaBody;
+                     * Vector3 axisI  = Quaternion.Inverse(qI) * axisB;
+                     *
+                     * - per-axis inertia (diagonal in principal coords
+                     * Vector3 I = rigidBody.inertiaTensor;
+                     * 
+                     * - wn - natural frequency (rad/s)
+                     *   "how fast" it tries to correct an angular error
+                     * - z - damping ratio (dimensionless)
+                     *   "how much" it resists oscillation
+                     *
+                     * Kp - proportional torque gain
+                     * Kd - damping torque gain
+                     *
+                     * Kp = ωₙ²
+                     * Kd = 2 ζ ωₙ
+                     */
+                    
+                    // Map body -> principal inertia frame
+                    Quaternion itr = rigidBody.inertiaTensorRotation;
+                    Vector3 omegaItr = Quaternion.Inverse(itr) * transform
+                        .InverseTransformDirection(
+                            rigidBody.angularVelocity
+                        );
+                    Vector3 axisItr = Quaternion.Inverse(itr) * 
+                        errorAxis.normalized;
+                    
+                    // per-axis inertia
+                    Vector3 it = rigidBody.inertiaTensor;
+                    
+                    // ωₙ
+                    float natFreq = 2f * Mathf.PI * attitudeBandwidth;
+                    // ζ = attitudeDamping;
+                    
+                    // Per-axis PD in terms of desired angular acceleration
+                    // torque = Kp*rotation_error - Kd*angularVelocity
+                    // Kp = wn * wn, Kd = 2 * z * wn
+                    float pTorqueGain = natFreq * natFreq;
+                    float dTorqueGain = 2f * attitudeDamping * natFreq;
+                    
+                    // Project error onto each principal axis
+                    Vector3 alphaItr =
+                        axisItr * (pTorqueGain * (Mathf.Deg2Rad * errorDeg)) -
+                        dTorqueGain * omegaItr;
+                    
+                    // torque in principal frame τ = I ⊙ α
+                    Vector3 tauItr = Vector3.Scale(it, alphaItr);
+                    
+                    // principal -> body -> world
+                    Vector3 tau = itr * tauItr;
+                    Vector3 tauWorld = transform.TransformDirection(tau);
+
+                    if (tauWorld.sqrMagnitude > MaxNm * MaxNm)
+                        tauWorld = tauWorld.normalized * MaxNm;
+                    
+                    rigidBody.AddTorque(
+                        tauWorld, 
+                        ForceMode.Force
+                    );
+                }
+            }
             
+            // compute wing rotations
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float) WingDirAtOrder(i);
+                ChangeWingRotation(
+                    d, 
+                    isPowered ? d : 0, 
+                    out _wingRotations[i]
+                );
+            }
+            if (isPowered)
+                CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
+            else
+                Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
             
-            
+            // apply wing rotations
+            for (int i = 0; i < wingsCount; i++)
+            {
+                Quaternion deltaWingRotation = Quaternion.Slerp(
+                    wings[i].localRotation,
+                    isPowered ? 
+                        _wingRotationsFromStrafe[i] * _wingRotations[i] : 
+                        Quaternion.identity,
+                    _wingsXzDistances[i] * fdt
+                );
+
+                wings[i].localRotation = deltaWingRotation;
+            }
+            /*/
+            Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
+            /*/
+            Debug.Log($"{wings[0].localRotation.y:F2}, {wings[1].localRotation.y:F2}, {wings[2].localRotation.y:F2}, {wings[3].localRotation.y:F2}, {wings[4].localRotation.y:F2}, {wings[5].localRotation.y:F2}");
+            //*/
         }
 
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
             if (!isPowered) return;
+            
+            _movV.y = Mathf.Clamp(v.y, -1f, 1f);
+            _yawInput = Mathf.Clamp(v.x, -1f, 1f);
 
-            _inputLeft = v;
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float)WingDirAtOrder(i);
+                ChangeWingRotation(
+                    d,
+                    d * appliedThrottleForce * v.x,
+                    out _wingRotations[i]
+                );
+            }
         }
 
         public void ActionRight(Vector2 v)
         {
             if (!isPowered) return;
-
-            _inputRight = v;
             
             xzPlane.Tilt(v);
             MovementXZ();
+            
+            _rotQ = Quaternion.Euler(
+                maxTiltDegree * v.y,
+                0f,
+                maxTiltDegree * -v.x
+            );
         }
 
         /// <summary>
@@ -263,13 +412,13 @@ namespace DroneMovement
         /// <param name="v">Received Aux value. Expected to be in the range of [0, 1].</param>
         public void ActionAux(float v)
         {
-            _knobMix = v;
+            KnobMix = v;
         }
 
         public void ActionTrigger(float v)
         {
             UpdateAxisRange();
-            _triggerToggle = v > 0.5f;
+            TriggerToggle = v > 0.5f;
         }
         
         /* Wings Position
@@ -294,8 +443,6 @@ namespace DroneMovement
         
         private WingDir WingDirAtOrder(int i) => 
             i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW;
-        private WingPos WingPosAtOrder(int i) => 
-            (WingPos) (i / 2 * (4 - wingsCount / 2));
 
         // drone animation (complex)
         private void MovementRotate(float v)
@@ -424,36 +571,36 @@ namespace DroneMovement
         // event handling for generic controllers (gamepads and keyboards + mouses)
         public void OnLeft(InputValue v)
         {
-            _prevAxes.Left = _generalAxes.Left;
-            _generalAxes.Left = _generalHandler.OnLeft(v);
-            ActionLeft(_generalAxes.Left);
+            PrevAxes.Left = GeneralAxes.Left;
+            GeneralAxes.Left = GeneralHandler.OnLeft(v);
+            ActionLeft(GeneralAxes.Left);
         }
         public void OnRight(InputValue v)
         {
-            _prevAxes.Right = _generalAxes.Right;
-            _generalAxes.Right = _generalHandler.OnRight(v);
-            ActionRight(_generalAxes.Right);
+            PrevAxes.Right = GeneralAxes.Right;
+            GeneralAxes.Right = GeneralHandler.OnRight(v);
+            ActionRight(GeneralAxes.Right);
         }
         public void OnAux(InputValue v)
         {
-            _prevAxes.Aux = _generalAxes.Aux;
-            _generalAxes.Aux = _generalHandler.OnAux(v);
-            ActionAux(_generalAxes.Aux);
+            PrevAxes.Aux = GeneralAxes.Aux;
+            GeneralAxes.Aux = GeneralHandler.OnAux(v);
+            ActionAux(GeneralAxes.Aux);
         }
         public void OnTrigger(InputValue v)
         {
-            _prevAxes.Trigger = _generalAxes.Trigger;
-            _generalAxes.Trigger = _generalHandler.OnTrigger(v);
-            ActionTrigger(_generalAxes.Trigger);
+            PrevAxes.Trigger = GeneralAxes.Trigger;
+            GeneralAxes.Trigger = GeneralHandler.OnTrigger(v);
+            ActionTrigger(GeneralAxes.Trigger);
         }
         // event handling for RC Controllers
         public void OnLeft(int _) => 
-            ActionLeft(_handler.OnLeft());
+            ActionLeft(Handler.OnLeft());
         public void OnRight(int _) => 
-            ActionRight(_handler.OnRight());
+            ActionRight(Handler.OnRight());
         public void OnAux(int _) => 
-            ActionAux(_handler.OnAux());
+            ActionAux(Handler.OnAux());
         public void OnTrigger(int _) => 
-            ActionTrigger(_handler.OnTrigger());
+            ActionTrigger(Handler.OnTrigger());
     }
 }
