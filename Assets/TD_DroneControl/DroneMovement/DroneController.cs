@@ -34,6 +34,17 @@ namespace DroneMovement
         [SerializeField] [Min(0)] private float baseThrottleForce = 49.05f;
         [Tooltip("N (kg·m/s²)")]
         [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
+        
+        [Header("Rotor Model")]
+        [Tooltip("N·m/N. Yaw reaction torque per 1N of thrust.")]
+        [SerializeField] [Min(0)] private float yawDragPerNewton = .02f;
+
+        [Tooltip("N. Lower/upper clamp for per-wing thrust.")] 
+        [SerializeField] private Vector2 thrustClamp = new Vector2(0, 1e6f);
+
+        private float[] _wingThrust; // N
+        private Vector3[] _lever; // r_i x up (world)
+        private Vector3 _wingThrustDirection;
 
         [Header("Proportional-Derivative Controller")] 
         [Tooltip("Hz, How \"fast\" rotations feel.")] 
@@ -65,6 +76,9 @@ namespace DroneMovement
         [SerializeField] [Range(4, 6)] private int wingsCount = 6;
         [Tooltip("Auto-generated using predefined names if left empty.")]
         [SerializeField] private Transform[] wings = new Transform[6];
+        [Tooltip("How many Conjugate-Gradient iterations to take per physics step.")]
+        [InspectorName("Conjugate-Gradient Iterations")]
+        [SerializeField, Range(1, 8)] private int cgIters = 3;
 
         [Header("Controller")]
         [SerializeField] private Vector2 rcControllerDeadzone = 
@@ -133,6 +147,8 @@ namespace DroneMovement
             Array.Fill(_wingRotations, Quaternion.identity, 0, wings.Length);
             Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
             Array.Fill(_wingRotationsFromStrafe, Quaternion.identity, 0, wings.Length);
+            _wingThrust = new float[wingsCount];
+            _lever = new Vector3[wingsCount];
         }
 
         public void UpdateAxisRange()
@@ -192,6 +208,8 @@ namespace DroneMovement
         {
             float fdt = Time.fixedDeltaTime;
             _worldUp = -Physics.gravity.normalized;
+            _wingThrustDirection = transform.up;
+            
             baseThrottleForce = autoHover ? 
                 rigidBody.mass * Physics.gravity.magnitude :
                 baseThrottleForce;
@@ -202,17 +220,22 @@ namespace DroneMovement
                 isPowered ? baseThrottleForce : 0, 
                 fdt
             );
+
+            // PD to get desired torque
+            Vector3 desiredTauWorld = Vector3.zero;
             
             if (isPowered)
             {
                 // --- LIFT ---
-                _currentThrottleForce = 
+                _currentThrottleForce = Mathf.Max(
+                    0f,
                     _currentPoweredThrottleForce + 
-                    appliedThrottleForce * _movV.y;
+                    appliedThrottleForce * _movV.y
+                );
                 
                 // tilt compensation to vertical component of thrust
                 float cosTilt = Mathf.Clamp(
-                    Vector3.Dot(transform.up, _worldUp),
+                    Vector3.Dot(_wingThrustDirection, _worldUp),
                     tiltCompensationMinCos,
                     1f
                 );
@@ -225,13 +248,8 @@ namespace DroneMovement
                     Vector3.Dot(rigidBody.linearVelocity, _worldUp);
                 float vertDampForce = 
                     -velocityV * rigidBody.linearDamping * rigidBody.mass;
-                
-                // apply lift force
-                rigidBody.AddForce(
-                    transform.up * _currentThrottleForce +
-                    _worldUp * vertDampForce,
-                    ForceMode.Force
-                );
+
+                _currentThrottleForce += vertDampForce;
 
                 // --- attitude ---
                 // yaw target (hold when stick returns to 0)
@@ -247,6 +265,7 @@ namespace DroneMovement
                 qError.ToAngleAxis(
                     out float errorDeg, out Vector3 errorAxis
                 );
+                
                 if (errorDeg > 180f)
                     errorDeg -= 360f;
                 if (
@@ -325,18 +344,21 @@ namespace DroneMovement
                     Vector3 tauItr = Vector3.Scale(it, alphaItr);
                     
                     // principal -> body -> world
-                    Vector3 tau = itr * tauItr;
-                    Vector3 tauWorld = transform.TransformDirection(tau);
+                    desiredTauWorld = transform.TransformDirection(itr * tauItr);
 
-                    if (tauWorld.sqrMagnitude > MaxNm * MaxNm)
-                        tauWorld = tauWorld.normalized * MaxNm;
-                    
-                    rigidBody.AddTorque(
-                        tauWorld, 
-                        ForceMode.Force
-                    );
+                    if (desiredTauWorld.sqrMagnitude > MaxNm * MaxNm)
+                        desiredTauWorld = desiredTauWorld.normalized * MaxNm;
                 }
             }
+            
+            // allocate thrust to wings and apply forces/torques
+            if (isPowered && _currentThrottleForce > 0f)
+                AllocateAndApplyRotorForces(_currentThrottleForce, desiredTauWorld);
+            // zero thrust -> gently spin down visually
+            else
+                for (int i = 0; i < wingsCount; i++)
+                    _wingThrust[i] = 0f;
+            
             
             // compute wing rotations
             for (int i = 0; i < wingsCount; i++)
@@ -397,7 +419,7 @@ namespace DroneMovement
             if (!isPowered) return;
             
             xzPlane.Tilt(v);
-            MovementXZ();
+            // MovementXZ();
             
             _rotQ = Quaternion.Euler(
                 maxTiltDegree * v.y,
@@ -566,6 +588,112 @@ namespace DroneMovement
                     strafeRate
                 );
             }
+        }
+            
+        /// <summary>
+        /// Map PD torque plus total thrust to per-wing thrust and apply them.
+        /// </summary>
+        /// <param name="totalThrustN"></param>
+        /// <param name="desiredTauWorld"></param>
+        private void AllocateAndApplyRotorForces(float totalThrustN, Vector3 desiredTauWorld)
+        {
+            // Build lever arms (r_i × _wingThrustDirection) in world space
+            for (int i = 0; i < wingsCount; i++)
+            {
+                Vector3 r = wings[i].position - rigidBody.worldCenterOfMass;
+                _lever[i] = Vector3.Cross(r, _wingThrustDirection);
+            }
+
+            // Split torque into "tilt torque" (roll/pitch) and "yaw torque"
+            float tauYaw = Vector3.Dot(desiredTauWorld, _wingThrustDirection);
+            Vector3 tauTilt = desiredTauWorld - tauYaw * _wingThrustDirection;
+
+            // Solve least-squares ΔF: A ΔF ~ tauTilt  -> ΔF = A^T (A A^T)^-1 tauTilt
+            Vector3 v = SolveGVEqualsTau(tauTilt, _lever);
+            float basePerWing = totalThrustN / wingsCount;
+            for (int i = 0; i < wingsCount; i++)
+                _wingThrust[i] = basePerWing + Vector3.Dot(_lever[i], v);
+
+            // Add yaw via reaction torque; choose c so sum of reaction torques ~ tauYaw.
+            // Reaction from wing i: τ_i_yaw ~ -dir_i * yawDragPerNewton * F_i * _wingThrustDirection.
+            // Using zero-sum mixing: add c*dir_i to each F_i -> sum yaw = -yawDrag*N*c.
+            float cYaw = (-tauYaw) / (yawDragPerNewton * wingsCount);
+            for (int i = 0; i < wingsCount; i++)
+                _wingThrust[i] += cYaw * (float)WingDirAtOrder(i);
+
+            // Clamp, keep total thrust roughly constant
+            float sum = 0f;
+            for (int i = 0; i < wingsCount; i++)
+            {
+                _wingThrust[i] = Mathf.Clamp(
+                    _wingThrust[i], thrustClamp.x, thrustClamp.y
+                );
+                sum += _wingThrust[i];
+            }
+            // Renormalize to preserve totalThrustN
+            float renorm = (sum > 1e-6f) ? totalThrustN / sum : 0f;
+            for (int i = 0; i < wingsCount; i++) _wingThrust[i] *= renorm;
+
+            // Apply the forces and yaw reaction torques; spin visuals from thrust.
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float f = _wingThrust[i];
+                int dir = (int)WingDirAtOrder(i); // +1 CW, -1 CCW
+
+                rigidBody.AddForceAtPosition(
+                    _wingThrustDirection * f, wings[i].position, ForceMode.Force
+                );
+                rigidBody.AddTorque(
+                    -dir * yawDragPerNewton * f * _wingThrustDirection, ForceMode.Force
+                );
+
+                // cosmetic spin from thrust
+                ChangeWingRotation(dir, f, out _wingRotations[i]);
+            }
+        }
+
+        /// <summary>
+        /// y = G(x) = (Σ li li^T) x
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="lever"></param>
+        /// <returns></returns>
+        private static Vector3 GMul(Vector3 x, IList<Vector3> lever)
+        {
+            Vector3 y = Vector3.zero;
+            for (int i = 0; i < lever.Count; i++)
+                y += lever[i] * Vector3.Dot(lever[i], x);
+            return y;
+        }
+
+        /// <summary>
+        /// Solve G v = tau using Conjugate Gradient (G is SPD).
+        /// </summary>
+        /// <param name="tau"></param>
+        /// <param name="lever"></param>
+        /// <returns></returns>
+        // ReSharper disable once InconsistentNaming
+        private Vector3 SolveGVEqualsTau(Vector3 tau, IList<Vector3> lever)
+        {
+            Vector3 v = Vector3.zero;
+            Vector3 r = tau - GMul(v, lever);
+            Vector3 p = r;
+            float rs = Vector3.Dot(r, r);
+
+            for (int k = 0; k < cgIters; k++)
+            {
+                Vector3 Ap = GMul(p, lever);
+                float denom = Mathf.Max(1e-9f, Vector3.Dot(p, Ap));
+                float a = rs / denom;
+                v += a * p;
+                r -= a * Ap;
+                float rsNew = Vector3.Dot(r, r);
+                if (rsNew < 1e-8f) break;
+                p = r + (rsNew / rs) * p;
+                rs = rsNew;
+            }
+
+            return v;
         }
 
         // event handling for generic controllers (gamepads and keyboards + mouses)
