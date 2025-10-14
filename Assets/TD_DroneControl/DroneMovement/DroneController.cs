@@ -8,7 +8,7 @@ namespace DroneMovement
 {
     public enum WingDir { CCW = -1, CW = 1 }
     public enum WingPos { Front = 0, Middle = 1, Back = 2 }
-     
+
     [RequireComponent(typeof(Rigidbody), typeof(PlayerInput))]
     public class DroneController : MonoBehaviour
     {
@@ -27,24 +27,44 @@ namespace DroneMovement
         private readonly float[] _wingsXzDistances = new float[6];
         private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
 
-        [Header("Configuration")]
-        [SerializeField] private bool isPowered;
-        [SerializeField] private bool autoHover = true;
-        [Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
-        [SerializeField] [Min(0)] private float baseThrottleForce = 49.05f;
-        [Tooltip("N (kg·m/s²)")]
-        [SerializeField] [Min(0)] private float appliedThrottleForce = 25f;
-        
-        [Header("Rotor Model")]
-        [Tooltip("N·m/N. Yaw reaction torque per 1N of thrust.")]
-        [SerializeField] [Min(0)] private float yawDragPerNewton = .02f;
+        [Header("Configuration")] [SerializeField]
+        private bool isPowered;
 
-        [Tooltip("N. Lower/upper clamp for per-wing thrust.")] 
-        [SerializeField] private Vector2 thrustClamp = new Vector2(0, 1e6f);
+        [SerializeField] private bool autoHover = true;
+
+        [Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")] [SerializeField, Min(0)]
+        private float baseThrottleForce = 49.05f;
+
+        [Tooltip("N (kg·m/s²)")] [SerializeField, Min(0)]
+        private float appliedThrottleForce = 25f;
+
+        [Header("Rotor Model")] [Tooltip("N·m/N. Yaw reaction torque per 1N of thrust.")] [SerializeField, Min(0)]
+        private float yawDragPerNewton = .02f;
+
+        [Tooltip("N. Lower/upper clamp for per-wing thrust.")] [SerializeField]
+        private Vector2 thrustClamp = new Vector2(0, 1e6f);
 
         private float[] _wingThrust; // N
         private Vector3[] _lever; // r_i x up (world)
         private Vector3 _wingThrustDirection;
+
+        [Header("Rotor Visual")] 
+        [SerializeField, Min(0)]
+        private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
+        [Tooltip("s. How fast visuals chase target speed wheen powered.")] 
+        [SerializeField, Min(0)]
+        private float spinResponseTime = .1f;
+        [Tooltip("s. How fast visuals wind down when unpowered.")] 
+        [SerializeField, Min(0)]
+        private float windDownTime = 1.5f;
+        [Tooltip("deg/s. Minimum visual spin when powered.")] 
+        [SerializeField, Min(0)]
+        private float minSpin = 0.15f;
+        [Tooltip("deg/s. Maximum visual spin when powered.")] 
+        [SerializeField, Min(0)]
+        private float maxSpin = 360f * 60f;
+
+        private float[] _currentSpinDegPerSec;
 
         [Header("Proportional-Derivative Controller")] 
         [Tooltip("Hz, How \"fast\" rotations feel.")] 
@@ -54,19 +74,17 @@ namespace DroneMovement
         private const float MaxNm = 1e6f;
 
         [Header("Physical Property")]
-        [SerializeField] [Min(0)] private float rotationalMultiplier = 20f; // for movement
         [Tooltip("deg/s")]
-        [SerializeField] [Min(0)] private float yawRate = 90f;
+        [SerializeField, Min(0)] private float yawRate = 90f;
         [Space(InspectorSpace)]
-        [SerializeField] [Min(0)] private float strafeRate = 1f;
+        [SerializeField, Min(0)] private float strafeRate = 1f;
         [Tooltip("An invisible plane sitting on the wings attitude in drone game object, tilts as xz movement input is received.")]
         [SerializeField] HelperPlane xzPlane;
         [Tooltip("deg, how much the helper plane can tilt.")]
-        [SerializeField] [Min(0)] private float maxTiltDegree = 30f;
+        [SerializeField, Min(0)] private float maxTiltDegree = 30f;
         [Tooltip("deg")]
         [SerializeField] [Range(0, 1f)] private float tiltCompensationMinCos = .35f;
         [Space(InspectorSpace)]
-        [SerializeField] [Min(0)] private float wingRotationMultiplier = 16f; // for cosmetic wing rotation
         private float _currentPoweredThrottleForce;
         private float _currentThrottleForce;
 
@@ -77,8 +95,7 @@ namespace DroneMovement
         [Tooltip("Auto-generated using predefined names if left empty.")]
         [SerializeField] private Transform[] wings = new Transform[6];
         [Tooltip("How many Conjugate-Gradient iterations to take per physics step.")]
-        [InspectorName("Conjugate-Gradient Iterations")]
-        [SerializeField, Range(1, 8)] private int cgIters = 3;
+        [SerializeField, Range(1, 8)] private int conjugateGradientIterations = 3;
 
         [Header("Controller")]
         [SerializeField] private Vector2 rcControllerDeadzone = 
@@ -149,6 +166,7 @@ namespace DroneMovement
             Array.Fill(_wingRotationsFromStrafe, Quaternion.identity, 0, wings.Length);
             _wingThrust = new float[wingsCount];
             _lever = new Vector3[wingsCount];
+            _currentSpinDegPerSec = new float[wingsCount];
         }
 
         public void UpdateAxisRange()
@@ -204,35 +222,34 @@ namespace DroneMovement
             // for general controllers
             
         }
+
         void FixedUpdate()
         {
             float fdt = Time.fixedDeltaTime;
             _worldUp = -Physics.gravity.normalized;
             _wingThrustDirection = transform.up;
-            
-            baseThrottleForce = autoHover ? 
-                rigidBody.mass * Physics.gravity.magnitude :
-                baseThrottleForce;
-            
+
+            baseThrottleForce = autoHover ? rigidBody.mass * Physics.gravity.magnitude : baseThrottleForce;
+
             // update powered state
             _currentPoweredThrottleForce = Mathf.Lerp(
-                _currentPoweredThrottleForce, 
-                isPowered ? baseThrottleForce : 0, 
+                _currentPoweredThrottleForce,
+                isPowered ? baseThrottleForce : 0,
                 fdt
             );
 
             // PD to get desired torque
             Vector3 desiredTauWorld = Vector3.zero;
-            
+
             if (isPowered)
             {
                 // --- LIFT ---
                 _currentThrottleForce = Mathf.Max(
                     0f,
-                    _currentPoweredThrottleForce + 
+                    _currentPoweredThrottleForce +
                     appliedThrottleForce * _movV.y
                 );
-                
+
                 // tilt compensation to vertical component of thrust
                 float cosTilt = Mathf.Clamp(
                     Vector3.Dot(_wingThrustDirection, _worldUp),
@@ -242,11 +259,11 @@ namespace DroneMovement
                 float tiltCompensation = 1f / cosTilt;
 
                 _currentThrottleForce *= tiltCompensation;
-                
+
                 // vertical velocity damping
-                float velocityV = 
+                float velocityV =
                     Vector3.Dot(rigidBody.linearVelocity, _worldUp);
-                float vertDampForce = 
+                float vertDampForce =
                     -velocityV * rigidBody.linearDamping * rigidBody.mass;
 
                 _currentThrottleForce += vertDampForce;
@@ -265,7 +282,7 @@ namespace DroneMovement
                 qError.ToAngleAxis(
                     out float errorDeg, out Vector3 errorAxis
                 );
-                
+
                 if (errorDeg > 180f)
                     errorDeg -= 360f;
                 if (
@@ -282,17 +299,17 @@ namespace DroneMovement
                      *   - "damper" resisting angular velocity
                      *   - slows down motion before overshoot
                      *   => -angularVelocity * kd
-                     * 
+                     *
                      * torque = Kp * rotation_error - Kd * angularVelocity
-                     * 
+                     *
                      * P makes it rotate towards, D stops it.
                      * Too low D gets it wobble, too high sluggy.
-                     * 
+                     *
                      * - current angular velocity in body frame
                      * Vector3 omegaBody = transform.InverseTransformDirection(
                      *     rigidBody.angularVelocity
                      * );
-                     * 
+                     *
                      * - Body -> principal inertia frame
                      * Quaternion qI = rigidBody.inertiaTensorRotation;
                      * Vector3 omegaI = Quaternion.Inverse(qI) * omegaBody;
@@ -300,7 +317,7 @@ namespace DroneMovement
                      *
                      * - per-axis inertia (diagonal in principal coords
                      * Vector3 I = rigidBody.inertiaTensor;
-                     * 
+                     *
                      * - wn - natural frequency (rad/s)
                      *   "how fast" it tries to correct an angular error
                      * - z - damping ratio (dimensionless)
@@ -312,37 +329,37 @@ namespace DroneMovement
                      * Kp = ωₙ²
                      * Kd = 2 ζ ωₙ
                      */
-                    
+
                     // Map body -> principal inertia frame
                     Quaternion itr = rigidBody.inertiaTensorRotation;
                     Vector3 omegaItr = Quaternion.Inverse(itr) * transform
                         .InverseTransformDirection(
                             rigidBody.angularVelocity
                         );
-                    Vector3 axisItr = Quaternion.Inverse(itr) * 
-                        errorAxis.normalized;
-                    
+                    Vector3 axisItr = Quaternion.Inverse(itr) *
+                                      errorAxis.normalized;
+
                     // per-axis inertia
                     Vector3 it = rigidBody.inertiaTensor;
-                    
+
                     // ωₙ
                     float natFreq = 2f * Mathf.PI * attitudeBandwidth;
                     // ζ = attitudeDamping;
-                    
+
                     // Per-axis PD in terms of desired angular acceleration
                     // torque = Kp*rotation_error - Kd*angularVelocity
                     // Kp = wn * wn, Kd = 2 * z * wn
                     float pTorqueGain = natFreq * natFreq;
                     float dTorqueGain = 2f * attitudeDamping * natFreq;
-                    
+
                     // Project error onto each principal axis
                     Vector3 alphaItr =
                         axisItr * (pTorqueGain * (Mathf.Deg2Rad * errorDeg)) -
                         dTorqueGain * omegaItr;
-                    
+
                     // torque in principal frame τ = I ⊙ α
                     Vector3 tauItr = Vector3.Scale(it, alphaItr);
-                    
+
                     // principal -> body -> world
                     desiredTauWorld = transform.TransformDirection(itr * tauItr);
 
@@ -350,7 +367,7 @@ namespace DroneMovement
                         desiredTauWorld = desiredTauWorld.normalized * MaxNm;
                 }
             }
-            
+
             // allocate thrust to wings and apply forces/torques
             if (isPowered && _currentThrottleForce > 0f)
                 AllocateAndApplyRotorForces(_currentThrottleForce, desiredTauWorld);
@@ -358,36 +375,16 @@ namespace DroneMovement
             else
                 for (int i = 0; i < wingsCount; i++)
                     _wingThrust[i] = 0f;
-            
-            
-            // compute wing rotations
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = (float) WingDirAtOrder(i);
-                ChangeWingRotation(
-                    d, 
-                    isPowered ? d : 0, 
-                    out _wingRotations[i]
-                );
-            }
+
+            // calculate wing rotations from strafes
             if (isPowered)
                 CalculateDistanceFromWingsToXZ(wings, xzPlane.transform, _wingsXzDistances);
             else
                 Array.Fill(_wingsXzDistances, 0f, 0, wings.Length);
             
-            // apply wing rotations
-            for (int i = 0; i < wingsCount; i++)
-            {
-                Quaternion deltaWingRotation = Quaternion.Slerp(
-                    wings[i].localRotation,
-                    isPowered ? 
-                        _wingRotationsFromStrafe[i] * _wingRotations[i] : 
-                        Quaternion.identity,
-                    _wingsXzDistances[i] * fdt
-                );
+            // wing spin driven by per-wing force
+            UpdateWingSpin(fdt);
 
-                wings[i].localRotation = deltaWingRotation;
-            }
             /*/
             Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
             /*/
@@ -419,7 +416,7 @@ namespace DroneMovement
             if (!isPowered) return;
             
             xzPlane.Tilt(v);
-            // MovementXZ();
+            MovementXZ();
             
             _rotQ = Quaternion.Euler(
                 maxTiltDegree * v.y,
@@ -467,34 +464,6 @@ namespace DroneMovement
             i % 4 is 0 or 3 ? WingDir.CW : WingDir.CCW;
 
         // drone animation (complex)
-        private void MovementRotate(float v)
-        {
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = (float) WingDirAtOrder(i);
-                ChangeWingRotationAndAddTorque(
-                    wings[i], 
-                    d, 
-                    d * appliedThrottleForce * v, 
-                    out _wingRotations[i], 
-                    rigidBody
-                );
-            }
-        }
-        private void MovementY(float v)
-        {
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = 1f;
-                ChangeWingRotationAndAddTorque(
-                    wings[i],
-                    d,
-                    d * appliedThrottleForce * v, 
-                    out _wingRotations[i], 
-                    rigidBody
-                );
-            }
-        }
         private void MovementXZ()
         {
             for (int i = 0; i < wingsCount; i++)
@@ -508,6 +477,46 @@ namespace DroneMovement
             }
         }
 
+        private void UpdateWingSpin(float dt)
+        {
+            float alphaOn =
+                1f - Mathf.Exp(-dt / Mathf.Max(1e-4f, spinResponseTime));
+            float alphaOff =
+                1f - Mathf.Exp(-dt / Mathf.Max(1e-4f, windDownTime));
+
+            float avgF = 0f;
+            for (int i = 0; i < wingsCount; i++) 
+                avgF += Mathf.Max(0f, _wingThrust[i]);
+            avgF /= Mathf.Max(1, wingsCount);
+            float floorF = minSpin * avgF;
+            
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float) WingDirAtOrder(i);
+                float iF = Mathf.Max(0f, _wingThrust[i]);
+                float iFVisual = isPowered ? Mathf.Max(iF, floorF) : 0f;
+                
+                float targetDegPerSec = isPowered ? 
+                    d * wingRotationMultiplier * iFVisual
+                    : 0f;
+                
+                float a = isPowered ? alphaOn : alphaOff;
+                _currentSpinDegPerSec[i] = Mathf.Lerp(
+                    _currentSpinDegPerSec[i], targetDegPerSec, a
+                );
+
+                _currentSpinDegPerSec[i] = Mathf.Clamp(
+                    _currentSpinDegPerSec[i], 
+                    -maxSpin, 
+                    maxSpin
+                );
+
+                float stepDeg = _currentSpinDegPerSec[i] * dt;
+                wings[i].localRotation *= 
+                    Quaternion.AngleAxis(stepDeg, Vector3.up);
+            }
+        }
+
         /*
          * Torque -> Left Thumb -> Apply Up -> Spins Clockwise
          * Wing's Torque Exerted to its Body -> Right Thumb:
@@ -516,6 +525,28 @@ namespace DroneMovement
         
         // drone animation (unit)
 
+        /// <summary>
+        /// Get a small change of a wing in `d`irection by `f`orce to its `q`uaternion variable over small time of `dt`.
+        /// This is purely for cosmetic purposes.
+        /// </summary>
+        /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
+        /// <param name="f">Amount of the force to apply.</param>
+        /// <param name="q">Variable to store the rotation of the wing.</param>
+        /// <param name="dt">small time</param>
+        private void GetDeltaWingRotation(
+            float d,
+            float f,
+            out Quaternion q,
+            float dt
+        )
+        {
+            q = Quaternion.Euler(
+                0,
+                d * wingRotationMultiplier * 
+                (_currentPoweredThrottleForce + f) * dt,
+                0
+            );
+        }
         /// <summary>
         /// Change rotation of a wing in `d`irection by `f`orce to its `q`uaternion variable.
         /// This is purely for cosmetic purposes.
@@ -533,35 +564,6 @@ namespace DroneMovement
                 0, 
                 d * wingRotationMultiplier * (_currentPoweredThrottleForce + f),
                 0
-            );
-        }
-        /// <summary>
-        /// Change rotation of a `w`ing in `d`irection by `f`orce to `q`uaternion variable,
-        /// and apply torque and force to the `b`ody the wing is attached to.
-        /// </summary>
-        /// <param name="w">Transform of the wing to rotate.</param>
-        /// <param name="d">The direction of the rotation. 1 for CW, -1 for CCW.</param>
-        /// <param name="f">Amount of the force to apply.</param>
-        /// <param name="q">Variable to store the rotation of the wing.</param>
-        /// <param name="b">Rigidbody of the body the wing is attached to.</param>
-        private void ChangeWingRotationAndAddTorque(
-            Transform w,
-            float d,
-            float f,
-            out Quaternion q,
-            Rigidbody b
-        )
-        {
-            ChangeWingRotation(d, f, out q);
-            
-            b.AddRelativeTorque(
-                -d * Vector3.up * (_currentPoweredThrottleForce + f),
-                ForceMode.Force
-            );
-            b.AddForceAtPosition(
-                Vector3.up * (_currentPoweredThrottleForce + f),
-                w.position,
-                ForceMode.Force
             );
         }
 
@@ -680,7 +682,7 @@ namespace DroneMovement
             Vector3 p = r;
             float rs = Vector3.Dot(r, r);
 
-            for (int k = 0; k < cgIters; k++)
+            for (int k = 0; k < conjugateGradientIterations; k++)
             {
                 Vector3 Ap = GMul(p, lever);
                 float denom = Mathf.Max(1e-9f, Vector3.Dot(p, Ap));

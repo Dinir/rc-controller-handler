@@ -206,15 +206,20 @@ MonoBehaviour:
   autoHover: 1
   baseThrottleForce: 49.05
   appliedThrottleForce: 25
+  yawDragPerNewton: 0.8
+  thrustClamp: {x: 0, y: 1000000}
+  wingRotationMultiplier: 720
+  spinResponseTime: 0.1
+  windDownTime: 1.5
+  minSpin: 0.15
+  maxSpin: 21600
   attitudeBandwidth: 3
   attitudeDamping: 0.55
-  rotationalMultiplier: 20
   yawRate: 45
   strafeRate: 1
   xzPlane: {fileID: 1450627124457402256}
   maxTiltDegree: 30
   tiltCompensationMinCos: 0.35
-  wingRotationMultiplier: 0.7
   model: {fileID: 1405507041430199488}
   rigidBody: {fileID: 1821113632817852861}
   wingsCount: 6
@@ -225,6 +230,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  cgIters: 3
   rcControllerDeadzone: {x: 0.001, y: 0.001}
   generalDeadzone: {x: 0.1, y: 0.1}
   rcControllerMaxValue: {x: 0.9, y: 0.9}
