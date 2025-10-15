@@ -127,7 +127,7 @@ namespace ControlHandler
                 );
         }
 
-        static float AuxNormalize(float v) =>
+        private static float AuxNormalize(float v) =>
             v >= 0 && v <= 1f ? v : Mathf.Clamp01((v + 1f) * .5f);
     }
 }

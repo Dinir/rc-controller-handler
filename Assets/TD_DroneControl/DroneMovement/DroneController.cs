@@ -198,6 +198,7 @@ namespace DroneMovement
                 // this variable made for gamepad should obey when there's an rc controller
                 TriggerToggle = Mathf.Approximately(Handler.Axes.Trigger, 1f);
             }
+            // for general controllers
             else
             {
                 HandlerPollTime += Time.deltaTime;
@@ -218,9 +219,6 @@ namespace DroneMovement
                     TriggerToggle = !TriggerToggle;
                 }
             }
-            
-            // for general controllers
-            
         }
 
         void FixedUpdate()
