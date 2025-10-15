@@ -20,8 +20,11 @@ namespace DroneMovement
         internal readonly float HandlerPollTimer = 3f;
         internal SextupleAxesManager PrevAxes;
         internal SextupleAxesManager GeneralAxes;
-        internal bool TriggerToggle; // from OnTrigger
         internal float KnobMix; // from OnAux
+        internal float TargetKnobMix; // knob value to chase
+        internal bool AuxLock; // for gamepad Aux control
+        internal float KnobResponsiveness = 1f;
+        internal bool TriggerToggle; // from OnTrigger
 
         private readonly Quaternion[] _wingRotations = new Quaternion[6];
         private readonly float[] _wingsXzDistances = new float[6];
@@ -389,54 +392,6 @@ namespace DroneMovement
             Debug.Log($"{wings[0].localRotation.y:F2}, {wings[1].localRotation.y:F2}, {wings[2].localRotation.y:F2}, {wings[3].localRotation.y:F2}, {wings[4].localRotation.y:F2}, {wings[5].localRotation.y:F2}");
             //*/
         }
-
-        // action for the attached game object
-        public void ActionLeft(Vector2 v)
-        {
-            if (!isPowered) return;
-            
-            _movV.y = Mathf.Clamp(v.y, -1f, 1f);
-            _yawInput = Mathf.Clamp(v.x, -1f, 1f);
-
-            for (int i = 0; i < wingsCount; i++)
-            {
-                float d = (float)WingDirAtOrder(i);
-                ChangeWingRotation(
-                    d,
-                    d * appliedThrottleForce * v.x,
-                    out _wingRotations[i]
-                );
-            }
-        }
-
-        public void ActionRight(Vector2 v)
-        {
-            if (!isPowered) return;
-            
-            xzPlane.Tilt(v);
-            MovementXZ();
-            
-            _rotQ = Quaternion.Euler(
-                maxTiltDegree * v.y,
-                0f,
-                maxTiltDegree * -v.x
-            );
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="v">Received Aux value. Expected to be in the range of [0, 1].</param>
-        public void ActionAux(float v)
-        {
-            KnobMix = v;
-        }
-
-        public void ActionTrigger(float v)
-        {
-            UpdateAxisRange();
-            TriggerToggle = v > 0.5f;
-        }
         
         /* Wings Position
          *
@@ -695,6 +650,63 @@ namespace DroneMovement
 
             return v;
         }
+        
+        // action for the attached game object
+        public void ActionLeft(Vector2 v)
+        {
+            if (!isPowered) return;
+            
+            _movV.y = Mathf.Clamp(v.y, -1f, 1f);
+            _yawInput = Mathf.Clamp(v.x, -1f, 1f);
+
+            for (int i = 0; i < wingsCount; i++)
+            {
+                float d = (float)WingDirAtOrder(i);
+                ChangeWingRotation(
+                    d,
+                    d * appliedThrottleForce * v.x,
+                    out _wingRotations[i]
+                );
+            }
+        }
+        public void ActionRight(Vector2 v)
+        {
+            if (!isPowered) return;
+            
+            xzPlane.Tilt(v);
+            MovementXZ();
+            
+            _rotQ = Quaternion.Euler(
+                maxTiltDegree * v.y,
+                0f,
+                maxTiltDegree * -v.x
+            );
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="v">Received Aux value. Expected to be in the range of [0, 1].</param>
+        public void ActionAux(float v)
+        {
+            if (HandlerFound) { KnobMix = v; }
+            else
+            {
+                if (AuxLock)
+                {
+                    TargetKnobMix = v;
+                    KnobMix = Mathf.Lerp(
+                        KnobMix,
+                        TargetKnobMix,
+                        KnobResponsiveness * Time.fixedDeltaTime
+                    );
+                }
+            }
+        }
+        public void ActionTrigger(float v)
+        {
+            UpdateAxisRange();
+            TriggerToggle = v > 0.5f;
+        }
 
         // event handling for generic controllers (gamepads and keyboards + mouses)
         public void OnLeft(InputValue v)
@@ -714,6 +726,10 @@ namespace DroneMovement
             PrevAxes.Aux = GeneralAxes.Aux;
             GeneralAxes.Aux = GeneralHandler.OnAux(v);
             ActionAux(GeneralAxes.Aux);
+        }
+        public void OnAuxLock(InputValue v)
+        {
+            AuxLock = v.isPressed;
         }
         public void OnTrigger(InputValue v)
         {
