@@ -30,9 +30,14 @@ namespace DroneMovement
         private readonly float[] _wingsXzDistances = new float[6];
         private readonly Quaternion[] _wingRotationsFromStrafe = new Quaternion[6];
 
-        [Header("Configuration")] [SerializeField]
-        private bool isPowered;
-
+        [Header("Configuration")] 
+        [SerializeField] private bool isPowered;
+        private bool _powerHoldLeft;
+        private bool _powerHoldRight;
+        private float _powerHoldDuration;
+        private const float PowerHoldThreshold = .6f;
+        private const float PowerHoldTime = .25f; // surprisingly longer than a second
+        private bool _powerSwitched;
         [SerializeField] private bool autoHover = true;
         [SerializeField, Min(0f), Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
         private float baseThrottleForce = 49.05f;
@@ -127,9 +132,6 @@ namespace DroneMovement
             UpdateAxisRange();
 
             xzPlane ??= transform.Find("XZPlane").GetComponent<HelperPlane>();
-
-            // TODO: ACTUALLY IMPLEMENT POWER TOGGLE
-            isPowered = false;
             
             if (wings[0] == null)
             {
@@ -636,10 +638,52 @@ namespace DroneMovement
 
             return v;
         }
+
+        public void trackHoldPowerToggleCommand(Vector2 stick, bool right)
+        {
+            switch (right)
+            {
+                case false:
+                    _powerHoldLeft = stick is
+                    {
+                        x: >= PowerHoldThreshold, 
+                        y: <= -PowerHoldThreshold
+                    };
+                    break;
+                case true:
+                    _powerHoldRight = stick is
+                    {
+                        x: <= -PowerHoldThreshold, 
+                        y: <= -PowerHoldThreshold
+                    };
+                    break;
+            }
+            
+            if (_powerSwitched)
+            {
+                if (!_powerHoldLeft && !_powerHoldRight) 
+                    _powerSwitched = false;
+            }
+            else
+            {
+                _powerHoldDuration = _powerHoldLeft && _powerHoldRight ? 
+                    _powerHoldDuration + Time.deltaTime : 
+                    0f;
+                Debug.Log($"Duration: {_powerHoldDuration}, Switched: {_powerSwitched}, Powered: {isPowered}");
+
+                if (_powerHoldDuration >= PowerHoldTime)
+                {
+                    _powerHoldDuration = 0f;
+                    isPowered = !isPowered;
+                    _powerSwitched = true;
+                }
+            }
+        }
         
         // action for the attached game object
         public void ActionLeft(Vector2 v)
         {
+            trackHoldPowerToggleCommand(v, false);
             if (!isPowered) return;
             
             _movV.y = Mathf.Clamp(v.y, -1f, 1f);
@@ -657,6 +701,7 @@ namespace DroneMovement
         }
         public void ActionRight(Vector2 v)
         {
+            trackHoldPowerToggleCommand(v, true);
             if (!isPowered) return;
             
             xzPlane.Tilt(v);
