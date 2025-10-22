@@ -34,18 +34,30 @@ namespace DroneMovement
         private bool isPowered;
 
         [SerializeField] private bool autoHover = true;
-
-        [Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")] [SerializeField, Min(0)]
+        [SerializeField, Min(0f), Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
         private float baseThrottleForce = 49.05f;
-
-        [Tooltip("N (kg·m/s²)")] [SerializeField, Min(0)]
+        [SerializeField, Min(0f), Tooltip("N (kg·m/s²), affects how fast lifting/descending is.")]
         private float appliedThrottleForce = 25f;
+        private float _currentPoweredThrottleForce;
+        private float _currentThrottleForce;
 
-        [Header("Rotor Model")] [Tooltip("N·m/N. Yaw reaction torque per 1N of thrust.")] [SerializeField, Min(0)]
+        [Header("Tilting")]
+        [SerializeField, Min(0f), Tooltip("deg/s, affects how \"snappy\" yaw rotations feel.")] 
+        private float yawRate = 90f;
+        [SerializeField, Tooltip("An invisible plane sitting on the wings attitude in drone game object, tilts as xz movement input is received.")] 
+        HelperPlane xzPlane;
+        [SerializeField, Min(0f), Tooltip("deg, how much the helper plane can tilt.")] 
+        private float maxTiltDegree = 30f;
+        [SerializeField, Range(0, 1f), Tooltip("deg")] private float tiltCompensationMinCos = .35f;
+        [Space(InspectorSpace)]
+
+        [Header("Rotor Model")]
+        [SerializeField, Min(0f), Tooltip("Yaw torque per 1 N thrust (N·m/N). "+
+            "Higher = smaller CW/CCW thrust split for the same yaw; lower = larger split. "+
+            "Increase if hard yaw sags altitude/clamps; decrease if yaw feels weak. Yaw only.")]
         private float yawDragPerNewton = .02f;
-
-        [Tooltip("N. Lower/upper clamp for per-wing thrust.")] [SerializeField]
-        private Vector2 thrustClamp = new Vector2(0, 1e6f);
+        [SerializeField, Tooltip("N. Lower/upper clamp for per-wing thrust.")]
+        private Vector2 thrustClamp = new Vector2(720, 1e6f);
 
         private float[] _wingThrust; // N
         private Vector3[] _lever; // r_i x up (world)
@@ -71,30 +83,15 @@ namespace DroneMovement
 
         [Header("Proportional-Derivative Controller")] 
         [Tooltip("Hz, How \"fast\" rotations feel.")] 
-        [SerializeField] [Min(.1f)] private float attitudeBandwidth = 3f;
+        [SerializeField, Min(.1f)] private float attitudeBandwidth = 3f;
         [Tooltip(".7~1.0, How much it \"resists\" oscilation.")]
-        [SerializeField] [Range(.2f, 2f)] private float attitudeDamping = .55f;
+        [SerializeField, Range(.2f, 2f)] private float attitudeDamping = .55f;
         private const float MaxNm = 1e6f;
-
-        [Header("Physical Property")]
-        [Tooltip("deg/s")]
-        [SerializeField, Min(0)] private float yawRate = 90f;
-        [Space(InspectorSpace)]
-        [SerializeField, Min(0)] private float strafeRate = 1f;
-        [Tooltip("An invisible plane sitting on the wings attitude in drone game object, tilts as xz movement input is received.")]
-        [SerializeField] HelperPlane xzPlane;
-        [Tooltip("deg, how much the helper plane can tilt.")]
-        [SerializeField, Min(0)] private float maxTiltDegree = 30f;
-        [Tooltip("deg")]
-        [SerializeField] [Range(0, 1f)] private float tiltCompensationMinCos = .35f;
-        [Space(InspectorSpace)]
-        private float _currentPoweredThrottleForce;
-        private float _currentThrottleForce;
 
         [Header("Properties")] 
         [SerializeField] private GameObject model;
         [SerializeField] private Rigidbody rigidBody;
-        [SerializeField] [Range(4, 6)] private int wingsCount = 6;
+        [SerializeField, Range(4, 6)] private int wingsCount = 6;
         [Tooltip("Auto-generated using predefined names if left empty.")]
         [SerializeField] private Transform[] wings = new Transform[6];
         [Tooltip("How many Conjugate-Gradient iterations to take per physics step.")]
@@ -116,7 +113,7 @@ namespace DroneMovement
         private Quaternion _rotQ = Quaternion.identity;
         private float _yawInput;
         private float _targetYaw;
-
+        
         void Awake()
         {
             Handler = new FsSm600Handler();
@@ -385,12 +382,6 @@ namespace DroneMovement
             
             // wing spin driven by per-wing force
             UpdateWingSpin(fdt);
-
-            /*/
-            Debug.Log($"{_wingRotationsFromStrafe[0]*_wingRotations[0]}, {_wingRotationsFromStrafe[1]*_wingRotations[1]}, {_wingRotationsFromStrafe[2]*_wingRotations[2]}, {_wingRotationsFromStrafe[3]*_wingRotations[3]}, {_wingRotationsFromStrafe[4]*_wingRotations[4]}, {_wingRotationsFromStrafe[5]*_wingRotations[5]}");
-            /*/
-            Debug.Log($"{wings[0].localRotation.y:F2}, {wings[1].localRotation.y:F2}, {wings[2].localRotation.y:F2}, {wings[3].localRotation.y:F2}, {wings[4].localRotation.y:F2}, {wings[5].localRotation.y:F2}");
-            //*/
         }
         
         /* Wings Position
@@ -536,12 +527,7 @@ namespace DroneMovement
                     ? 0f
                     : Vector3.Dot(p0 - wp, n) / denom;
 
-                dist[i] *= strafeRate;
-                dist[i] = Mathf.Clamp(
-                    dist[i],
-                    -strafeRate,
-                    strafeRate
-                );
+                dist[i] = Mathf.Clamp(dist[i], -1f, 1f);
             }
         }
             
@@ -675,11 +661,9 @@ namespace DroneMovement
             
             xzPlane.Tilt(v);
             MovementXZ();
-            
+
             _rotQ = Quaternion.Euler(
-                maxTiltDegree * v.y,
-                0f,
-                maxTiltDegree * -v.x
+                maxTiltDegree * v.y, 0f, maxTiltDegree * -v.x
             );
         }
         /// <summary>
@@ -697,7 +681,7 @@ namespace DroneMovement
                     KnobMix = Mathf.Lerp(
                         KnobMix,
                         TargetKnobMix,
-                        KnobResponsiveness * Time.fixedDeltaTime
+                        KnobResponsiveness * Time.deltaTime
                     );
                 }
             }
