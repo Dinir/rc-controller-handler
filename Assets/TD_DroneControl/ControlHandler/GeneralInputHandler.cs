@@ -16,25 +16,20 @@ namespace ControlHandler
         public virtual Vector2 OnLeft(InputValue v)
         {
             LeftRaw = v.Get<Vector2>();
-            // Debug.Log($"Generic Left: {LeftRaw}");
 
             return LeftRaw;
         }
-
         public virtual Vector2 OnRight(InputValue v)
         {
             RightRaw = v.Get<Vector2>();
-            // Debug.Log($"Generic Right: {RightRaw}");
 
             return RightRaw;
         }
-
         public virtual float OnAux(InputValue v)
         {
             try
             {
-                // // from generic controller trigger or rc controller knob
-                // Aux = Mathf.Clamp(-1 + 2f * v.Get<float>(), -1f, 1f);
+                Aux = v.Get<float>();
             }
             catch (InvalidOperationException)
             {
@@ -50,11 +45,9 @@ namespace ControlHandler
                     );
                 }
             }
-            // Debug.Log($"Generic Aux: {Aux}");
 
             return Aux;
         }
-
         public virtual float OnAuxLock(InputValue v)
         {
             // rc controller aux can hold a value,
@@ -65,11 +58,9 @@ namespace ControlHandler
             
             return AuxLock;
         }
-
         public virtual float OnTrigger(InputValue v)
         {
             Trigger = v.Get<float>();
-            // Debug.Log($"Generic Trigger: {Trigger}");
 
             return Trigger;
         }

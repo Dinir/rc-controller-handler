@@ -78,34 +78,10 @@ namespace ControlHandler
             }
         }
 
-        public virtual Vector2 OnLeft()
-        {
-            // Debug.Log($"RC Left: {Axes.Left}");
-
-            return Axes.Left;
-        }
-
-        public virtual Vector2 OnRight()
-        {
-            // Debug.Log($"RC Right: {Axes.Right}");
-
-            return Axes.Right;
-        }
-
-        public virtual float OnAux()
-        {
-            // Debug.Log($"RC Aux: {Axes.Aux}");
-            
-
-            return AuxNormalize(Axes.Aux);
-        }
-
-        public virtual float OnTrigger()
-        {
-            // Debug.Log($"RC Trigger: {Axes.Trigger}");
-
-            return Axes.Trigger;
-        }
+        public virtual Vector2 OnLeft() => Axes.Left;
+        public virtual Vector2 OnRight() => Axes.Right;
+        public virtual float OnAux() => AuxNormalize(Axes.Aux);
+        public virtual float OnTrigger() => Axes.Trigger;
 
         public void SendMessages(GameObject receiver, bool[] stateChanges)
         {

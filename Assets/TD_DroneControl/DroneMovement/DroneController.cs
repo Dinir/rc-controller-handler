@@ -118,7 +118,7 @@ namespace DroneMovement
         private Quaternion _rotQ = Quaternion.identity;
         private float _yawInput;
         private float _targetYaw;
-        
+
         void Awake()
         {
             Handler = new FsSm600Handler();
