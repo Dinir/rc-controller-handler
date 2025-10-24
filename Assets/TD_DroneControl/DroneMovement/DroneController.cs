@@ -35,8 +35,15 @@ namespace DroneMovement
         private bool _powerHoldLeft;
         private bool _powerHoldRight;
         private float _powerHoldDuration;
+        private float _powerHoldAltitudeAtBeginning;
+        private const float PowerHoldInitialFraction = 1e-2f;
         private const float PowerHoldThreshold = .6f;
-        private const float PowerHoldTime = .25f; // surprisingly longer than a second
+        private const float PowerHoldAngleRangeDeg = 5f;
+        private static readonly Vector2[] PowerHoldDirection = {
+            new Vector2(1, -1).normalized,
+            new Vector2(-1, -1).normalized
+        };
+        private const float PowerHoldTime = .5f;
         private bool _powerSwitched;
         [SerializeField] private bool autoHover = true;
         [SerializeField, Min(0f), Tooltip("N (kg·m/s²), applies 'mass * gravity' instead when Auto Hover is on.")]
@@ -644,19 +651,22 @@ namespace DroneMovement
             switch (right)
             {
                 case false:
-                    _powerHoldLeft = stick is
-                    {
-                        x: >= PowerHoldThreshold, 
-                        y: <= -PowerHoldThreshold
-                    };
+                    _powerHoldLeft = InWedge(
+                        stick, 
+                        PowerHoldDirection[0], 
+                        PowerHoldThreshold, 
+                        PowerHoldAngleRangeDeg
+                    );
                     break;
                 case true:
-                    _powerHoldRight = stick is
-                    {
-                        x: <= -PowerHoldThreshold, 
-                        y: <= -PowerHoldThreshold
-                    };
-                    break;
+                    _powerHoldRight = InWedge(
+                        stick, 
+                        PowerHoldDirection[1], 
+                        PowerHoldThreshold, 
+                        PowerHoldAngleRangeDeg
+                    );
+                    // pass the overall control to the left stick
+                    return;
             }
             
             if (_powerSwitched)
@@ -668,8 +678,24 @@ namespace DroneMovement
             {
                 _powerHoldDuration = _powerHoldLeft && _powerHoldRight ? 
                     _powerHoldDuration + Time.deltaTime : 
-                    0f;
-                Debug.Log($"Duration: {_powerHoldDuration}, Switched: {_powerSwitched}, Powered: {isPowered}");
+                    _powerHoldDuration - 
+                    1.5f * PowerHoldInitialFraction * Time.deltaTime;
+                
+                if (
+                    _powerHoldDuration >= 
+                    PowerHoldInitialFraction * PowerHoldTime
+                )
+                    _powerHoldAltitudeAtBeginning = transform.position.y;
+                if (
+                    Mathf.Abs(
+                        transform.position.y - _powerHoldAltitudeAtBeginning
+                    ) >= PowerHoldInitialFraction
+                )
+                    _powerHoldDuration = 
+                        _powerHoldDuration - 
+                        1.5f * PowerHoldInitialFraction * Time.deltaTime;
+
+                if (_powerHoldDuration < 0f) _powerHoldDuration = 0f; 
 
                 if (_powerHoldDuration >= PowerHoldTime)
                 {
@@ -678,6 +704,16 @@ namespace DroneMovement
                     _powerSwitched = true;
                 }
             }
+        }
+
+        public static bool InWedge(
+            Vector2 stick, Vector2 targetNormalized, float minMag, float cosMax
+        )
+        {
+            float mag = stick.magnitude;
+            if (mag < minMag) return false;
+            float cos = Vector2.Dot(stick / mag, targetNormalized);
+            return cos >= Mathf.Cos(cosMax * Mathf.Deg2Rad);
         }
         
         // action for the attached game object
